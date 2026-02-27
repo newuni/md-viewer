@@ -73,6 +73,18 @@ If needed:
 xattr -dr com.apple.quarantine /Applications/MDViewer.app
 ```
 
+## Quick Look behavior
+
+Pressing `space` in Finder should render Markdown directly with the extension. The `Open with MDViewer` button is system UI and cannot be removed, but you should not need to click it for preview.
+
+If Finder still shows plain text preview, refresh Quick Look services:
+
+```bash
+qlmanage -r
+qlmanage -r cache
+killall Finder
+```
+
 ## Open source
 
 - License: MIT

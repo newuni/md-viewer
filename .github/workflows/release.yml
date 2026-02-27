@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Swift package tests
+        run: swift test
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: ./scripts/generate_xcodeproj.sh
+
+      - name: Build release app
+        run: |
+          xcodebuild \
+            -project MDViewer.xcodeproj \
+            -scheme MDViewerApp \
+            -configuration Release \
+            -derivedDataPath build \
+            -destination 'platform=macOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package app
+        run: |
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent build/Build/Products/Release/MDViewer.app artifacts/MDViewer.app.zip
+          shasum -a 256 artifacts/MDViewer.app.zip > artifacts/MDViewer.app.zip.sha256
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/MDViewer.app.zip
+            artifacts/MDViewer.app.zip.sha256
+          body: |
+            ## MDViewer release
+
+            This build is currently unsigned and not notarized.
+            If Gatekeeper blocks execution, remove quarantine after verifying checksum:
+
+            ```bash
+            xattr -dr com.apple.quarantine /Applications/MDViewer.app
+            ```

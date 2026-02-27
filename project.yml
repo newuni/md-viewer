@@ -1,0 +1,116 @@
+name: MDViewer
+options:
+  minimumXcodeGenVersion: 2.38.0
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    MACOSX_DEPLOYMENT_TARGET: 14.0
+packages:
+  LocalCore:
+    path: .
+targets:
+  MDViewerApp:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: App/Sources/MDViewerApp
+    dependencies:
+      - package: LocalCore
+        product: MarkdownRendererCore
+      - target: MDViewerQuickLookExtension
+        embed: true
+    settings:
+      base:
+        PRODUCT_NAME: MDViewer
+        PRODUCT_BUNDLE_IDENTIFIER: com.newuni.mdviewer
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        GENERATE_INFOPLIST_FILE: YES
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleDisplayName: MDViewer
+        LSApplicationCategoryType: public.app-category.productivity
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Markdown Document
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Owner
+            LSItemContentTypes:
+              - net.daringfireball.markdown
+              - public.plain-text
+        UTImportedTypeDeclarations:
+          - UTTypeIdentifier: net.daringfireball.markdown
+            UTTypeConformsTo:
+              - public.plain-text
+            UTTypeDescription: Markdown document
+            UTTypeTagSpecification:
+              public.filename-extension:
+                - md
+                - markdown
+              public.mime-type:
+                - text/markdown
+  MDViewerQuickLookExtension:
+    type: app-extension
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Extensions/MDViewerQuickLookExtension
+    dependencies:
+      - package: LocalCore
+        product: MarkdownRendererCore
+    settings:
+      base:
+        PRODUCT_NAME: MDViewerQuickLookExtension
+        PRODUCT_BUNDLE_IDENTIFIER: com.newuni.mdviewer.quicklook
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 0.1.0
+        GENERATE_INFOPLIST_FILE: YES
+        SKIP_INSTALL: YES
+    info:
+      path: Extensions/MDViewerQuickLookExtension/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).PreviewProvider
+          NSExtensionAttributes:
+            QLIsDataBasedPreview: true
+            QLSupportedContentTypes:
+              - net.daringfireball.markdown
+              - public.plain-text
+  MDViewerTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: App/Tests/MDViewerTests
+    dependencies:
+      - package: LocalCore
+        product: MarkdownRendererCore
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.newuni.mdviewer.tests
+        GENERATE_INFOPLIST_FILE: YES
+  MDViewerUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: App/Tests/MDViewerUITests
+    dependencies:
+      - target: MDViewerApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.newuni.mdviewer.uitests
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  MDViewerApp:
+    build:
+      targets:
+        MDViewerApp: all
+        MDViewerQuickLookExtension: all
+    test:
+      targets:
+        - MDViewerTests
+        - MDViewerUITests

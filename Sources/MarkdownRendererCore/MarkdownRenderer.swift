@@ -24,7 +24,8 @@ public struct MarkdownRenderer {
     public func render(markdown: String, title: String = "Markdown Preview") throws -> String {
         let rawHTML = HTMLFormatter.format(markdown)
         let sanitizedHTML = sanitize(html: rawHTML)
-        return wrapInDocument(bodyHTML: sanitizedHTML, title: title)
+        let htmlWithHeadingAnchors = addHeadingAnchors(html: sanitizedHTML)
+        return wrapInDocument(bodyHTML: htmlWithHeadingAnchors, title: title)
     }
 
     public func render(fileURL: URL) throws -> String {
@@ -87,6 +88,73 @@ public struct MarkdownRenderer {
         return sanitized
     }
 
+    private func addHeadingAnchors(html: String) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<h([1-6])([^>]*)>([\s\S]*?)</h\1>"#,
+            options: [.caseInsensitive]
+        ) else {
+            return html
+        }
+
+        let nsHTML = html as NSString
+        let range = NSRange(location: 0, length: nsHTML.length)
+        let matches = regex.matches(in: html, options: [], range: range)
+
+        let output = NSMutableString(string: html)
+        var offset = 0
+        var slugCounts: [String: Int] = [:]
+
+        for match in matches {
+            guard
+                match.numberOfRanges == 4,
+                let levelRange = Range(match.range(at: 1), in: html),
+                let attrsRange = Range(match.range(at: 2), in: html),
+                let innerRange = Range(match.range(at: 3), in: html)
+            else {
+                continue
+            }
+
+            let level = String(html[levelRange])
+            let attributes = String(html[attrsRange])
+            let innerHTML = String(html[innerRange])
+
+            if attributes.range(of: #"\bid\s*="#, options: .regularExpression) != nil {
+                continue
+            }
+
+            let plainText = innerHTML
+                .replacing(pattern: #"<[^>]+>"#, with: "")
+                .decodeBasicHTMLEntities()
+
+            let baseSlug = slugifyHeading(plainText)
+            let count = (slugCounts[baseSlug] ?? 0) + 1
+            slugCounts[baseSlug] = count
+
+            let uniqueSlug = count == 1 ? baseSlug : "\(baseSlug)-\(count)"
+            let replacement = "<h\(level)\(attributes) id=\"\(uniqueSlug)\">\(innerHTML)</h\(level)>"
+
+            let adjustedRange = NSRange(
+                location: match.range.location + offset,
+                length: match.range.length
+            )
+            output.replaceCharacters(in: adjustedRange, with: replacement)
+            offset += (replacement as NSString).length - match.range.length
+        }
+
+        return output as String
+    }
+
+    private func slugifyHeading(_ heading: String) -> String {
+        let normalized = heading
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: .current)
+            .lowercased()
+
+        var slug = normalized.replacing(pattern: #"[^a-z0-9]+"#, with: "-")
+        slug = slug.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+        return slug.isEmpty ? "section" : slug
+    }
+
     private func wrapInDocument(bodyHTML: String, title: String) -> String {
         """
         <!doctype html>
@@ -126,13 +194,16 @@ public struct MarkdownRenderer {
                 body {
                     max-width: 980px;
                     margin: 0 auto;
-                    padding: 28px;
+                    padding: 20px;
                     box-sizing: border-box;
                 }
                 h1, h2, h3, h4, h5, h6 {
                     line-height: 1.25;
                     margin-top: 1.2em;
                     margin-bottom: 0.45em;
+                }
+                h1:first-child, h2:first-child, h3:first-child, h4:first-child, h5:first-child, h6:first-child {
+                    margin-top: 0;
                 }
                 p, ul, ol, pre, table, blockquote {
                     margin-top: 0;
@@ -209,5 +280,14 @@ private extension String {
         }
         let range = NSRange(location: 0, length: utf16.count)
         return regex.stringByReplacingMatches(in: self, options: [], range: range, withTemplate: replacement)
+    }
+
+    func decodeBasicHTMLEntities() -> String {
+        self
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
     }
 }

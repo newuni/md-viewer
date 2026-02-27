@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.4] - 2026-02-27
+
+### Added
+
+- Auto-generated heading anchors (`id`) so Markdown TOC links (`#...`) navigate correctly in app and Quick Look previews.
+- Regression test coverage for heading-anchor generation and duplicate heading suffixes.
+
+### Changed
+
+- Increased default app document window size for better first-open readability.
+- Reduced top content padding and removed top margin on first heading to show more lines initially.
+- README troubleshooting now includes `pluginkit` verification command for Quick Look extension registration.
+
 ## [0.1.1] - 2026-02-27
 
 ### Added

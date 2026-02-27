@@ -15,7 +15,7 @@ struct MarkdownRendererCoreTests {
 
         let html = try renderer.render(markdown: markdown)
 
-        #expect(html.contains("<h1>Title</h1>"))
+        #expect(html.contains("<h1 id=\"title\">Title</h1>"))
         #expect(html.contains("<ul>"))
         #expect(html.contains("<li><p>One</p>"))
     }
@@ -58,7 +58,7 @@ struct MarkdownRendererCoreTests {
         let html = try renderer.render(markdown: markdown)
 
         #expect(!html.localizedCaseInsensitiveContains("<script"))
-        #expect(html.contains("<h1>Hello</h1>"))
+        #expect(html.contains("<h1 id=\"hello\">Hello</h1>"))
     }
 
     @Test
@@ -76,6 +76,24 @@ struct MarkdownRendererCoreTests {
 
         #expect(html.contains("Cancion"))
         #expect(html.contains("Manana"))
+    }
+
+    @Test
+    func generatesHeadingAnchorsForTOCLinks() throws {
+        let markdown = """
+        ## Indice
+
+        1. [Requisitos previos](#requisitos-previos)
+
+        ## Requisitos previos
+        ## Requisitos previos
+        """
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("href=\"#requisitos-previos\""))
+        #expect(html.contains("<h2 id=\"requisitos-previos\">Requisitos previos</h2>"))
+        #expect(html.contains("<h2 id=\"requisitos-previos-2\">Requisitos previos</h2>"))
     }
 
     @Test

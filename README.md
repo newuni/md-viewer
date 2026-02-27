@@ -86,6 +86,7 @@ If Finder still shows plain text preview, refresh Quick Look services:
 qlmanage -r
 qlmanage -r cache
 killall Finder
+pluginkit -m -A -D -p com.apple.quicklook.preview | grep com.newuni.mdviewer.quicklook
 ```
 
 ## Open source

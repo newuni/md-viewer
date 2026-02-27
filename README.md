@@ -23,6 +23,11 @@ Public beta: core workflow is complete (app preview, Quick Look, live refresh, T
 - Automatic heading anchors so table-of-contents links (`#...`) work.
 - Lightweight syntax highlighting for fenced code blocks (Swift/JS/TS/Python/Shell/SQL).
 - Live preview refresh when the source file changes on disk.
+- Find-in-document (`Cmd+F`) with next/previous navigation and case-sensitive toggle.
+- Collapsible outline sidebar for heading navigation (`h1`-`h4`).
+- Manual fast mode prompt for files `>= 5MB` to keep previews responsive.
+- Front matter support (`--- ... ---`) without rendering it as document content.
+- GitHub-flavored Markdown baseline support (tables, task lists, strikethrough).
 - Enriched Quick Look preview metadata (title/description/keywords extraction).
 
 ## Requirements
@@ -76,6 +81,14 @@ If needed:
 ```bash
 xattr -dr com.apple.quarantine /Applications/MDViewer.app
 ```
+
+## Release automation notes
+
+The release workflow can sync the repository **About** section (description, homepage and topics) to the current tag.
+
+- Configure repository secret: `REPO_METADATA_TOKEN` (GitHub token with permission to update repository metadata).
+- On each `v*` tag release, homepage is updated to `https://github.com/<owner>/<repo>/releases/tag/<tag>`.
+- If the secret is missing, the sync step is skipped and the release still succeeds.
 
 ## Quick Look behavior
 

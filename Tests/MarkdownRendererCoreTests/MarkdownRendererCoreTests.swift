@@ -136,7 +136,128 @@ struct MarkdownRendererCoreTests {
 
         #expect(rendered.metadata.title == "Build release docs")
         #expect(rendered.metadata.description.contains("release automation"))
+        #expect(rendered.headings.contains(where: { $0.level == 1 && $0.anchor == "build-release-docs" }))
         #expect(rendered.html.contains("<meta name=\"description\""))
         #expect(rendered.html.contains("<meta name=\"keywords\""))
+    }
+
+    @Test
+    func canDisableTOCExtractionWhileKeepingAnchors() throws {
+        let markdown = """
+        ## Section one
+        """
+
+        let rendered = try renderer.renderDocument(
+            markdown: markdown,
+            options: MarkdownRenderOptions(tocExtractionEnabled: false)
+        )
+
+        #expect(rendered.headings.isEmpty)
+        #expect(rendered.html.contains("<h2 id=\"section-one\">Section one</h2>"))
+    }
+
+    @Test
+    func fastModeDisablesHighlightAndTOC() throws {
+        let markdown = """
+        ## Heading
+
+        ```swift
+        let total = 42
+        ```
+        """
+
+        let rendered = try renderer.renderDocument(
+            markdown: markdown,
+            options: MarkdownRenderOptions(
+                syntaxHighlightingEnabled: true,
+                tocExtractionEnabled: true,
+                fastMode: true
+            )
+        )
+
+        #expect(rendered.headings.isEmpty)
+        #expect(!rendered.html.contains("class=\"tok-keyword\">"))
+        #expect(rendered.html.contains("<h2 id=\"heading\">Heading</h2>"))
+    }
+
+    @Test
+    func stripsFrontMatterFromRenderedBodyAndUsesItAsMetadata() throws {
+        let markdown = """
+        ---
+        title: Real title from front matter
+        description: Custom metadata description
+        tags: [docs, api]
+        ---
+
+        # Body heading
+
+        Content body.
+        """
+
+        let rendered = try renderer.renderDocument(markdown: markdown, title: "fallback.md")
+
+        #expect(rendered.metadata.title == "Real title from front matter")
+        #expect(rendered.metadata.description == "Custom metadata description")
+        #expect(rendered.metadata.keywords == ["docs", "api"])
+        #expect(!rendered.html.contains("title: Real title from front matter"))
+        #expect(rendered.html.contains("<h1 id=\"body-heading\">Body heading</h1>"))
+    }
+
+    @Test
+    func supportsCoreGitHubFlavoredMarkdownConstructs() throws {
+        let markdown = """
+        - [ ] Pending
+        - [x] Done
+
+        ~~strikethrough~~
+
+        | Col A | Col B |
+        | ----- | ----- |
+        | 1     | 2     |
+        """
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("type=\"checkbox\""))
+        #expect(html.contains("<del>strikethrough</del>"))
+        #expect(html.contains("<table>"))
+    }
+
+    @Test
+    func autolinksPlainURLs() throws {
+        let markdown = "Visit https://example.com/docs for details."
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("<a href=\"https://example.com/docs\">https://example.com/docs</a>"))
+    }
+
+    @Test
+    func autolinkKeepsTrailingPunctuationOutsideAnchor() throws {
+        let markdown = "See https://example.com/docs, then continue."
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("<a href=\"https://example.com/docs\">https://example.com/docs</a>, then continue."))
+    }
+
+    @Test
+    func autolinkSkipsURLsInCodeAndExistingLinks() throws {
+        let markdown = """
+        Use `https://example.com/inline` inside code.
+
+        [Existing](https://example.com/already-linked)
+
+        ```
+        https://example.com/fenced
+        ```
+        """
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("<code>https://example.com/inline</code>"))
+        #expect(html.contains("href=\"https://example.com/already-linked\""))
+        #expect(!html.contains("href=\"<a href=\""))
+        #expect(html.contains("<pre><code>https://example.com/fenced"))
     }
 }

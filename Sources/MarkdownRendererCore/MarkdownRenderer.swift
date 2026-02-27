@@ -32,38 +32,99 @@ public struct MarkdownRenderMetadata: Equatable {
     }
 }
 
+public struct MarkdownRenderOptions: Equatable, Sendable {
+    public var syntaxHighlightingEnabled: Bool
+    public var tocExtractionEnabled: Bool
+    public var fastMode: Bool
+
+    public init(
+        syntaxHighlightingEnabled: Bool = true,
+        tocExtractionEnabled: Bool = true,
+        fastMode: Bool = false
+    ) {
+        self.syntaxHighlightingEnabled = syntaxHighlightingEnabled
+        self.tocExtractionEnabled = tocExtractionEnabled
+        self.fastMode = fastMode
+    }
+}
+
+public struct HeadingItem: Equatable, Sendable {
+    public let level: Int
+    public let text: String
+    public let anchor: String
+
+    public init(level: Int, text: String, anchor: String) {
+        self.level = level
+        self.text = text
+        self.anchor = anchor
+    }
+}
+
 public struct RenderedMarkdownDocument: Equatable {
     public let html: String
     public let metadata: MarkdownRenderMetadata
+    public let headings: [HeadingItem]
 
-    public init(html: String, metadata: MarkdownRenderMetadata) {
+    public init(html: String, metadata: MarkdownRenderMetadata, headings: [HeadingItem] = []) {
         self.html = html
         self.metadata = metadata
+        self.headings = headings
     }
 }
 
 public struct MarkdownRenderer {
     public init() {}
 
-    public func render(markdown: String, title: String = "Markdown Preview") throws -> String {
-        try renderDocument(markdown: markdown, title: title).html
+    public func render(
+        markdown: String,
+        title: String = "Markdown Preview",
+        options: MarkdownRenderOptions = MarkdownRenderOptions()
+    ) throws -> String {
+        try renderDocument(markdown: markdown, title: title, options: options).html
     }
 
-    public func renderDocument(markdown: String, title: String = "Markdown Preview") throws -> RenderedMarkdownDocument {
-        let rawHTML = HTMLFormatter.format(markdown)
+    public func renderDocument(
+        markdown: String,
+        title: String = "Markdown Preview",
+        options: MarkdownRenderOptions = MarkdownRenderOptions()
+    ) throws -> RenderedMarkdownDocument {
+        let normalizedOptions = normalizedOptions(for: options)
+        let preprocessed = preprocessMarkdown(markdown)
+        let rawHTML = HTMLFormatter.format(preprocessed.bodyMarkdown)
         let sanitizedHTML = sanitize(html: rawHTML)
-        let htmlWithHeadingAnchors = addHeadingAnchors(html: sanitizedHTML)
-        let highlightedHTML = highlightCodeBlocks(html: htmlWithHeadingAnchors)
-        let metadata = buildMetadata(fromBodyHTML: highlightedHTML, fallbackTitle: title)
-        let finalHTML = wrapInDocument(bodyHTML: highlightedHTML, metadata: metadata)
-        return RenderedMarkdownDocument(html: finalHTML, metadata: metadata)
+        let anchored = addHeadingAnchors(
+            html: sanitizedHTML,
+            collectTOC: normalizedOptions.tocExtractionEnabled
+        )
+        let htmlWithHeadingAnchors = anchored.html
+        let highlightedHTML = normalizedOptions.syntaxHighlightingEnabled
+            ? highlightCodeBlocks(html: htmlWithHeadingAnchors)
+            : htmlWithHeadingAnchors
+        let autolinkedHTML = addAutolinks(to: highlightedHTML)
+        let metadata = buildMetadata(
+            fromBodyHTML: autolinkedHTML,
+            fallbackTitle: title,
+            frontMatter: preprocessed.frontMatter
+        )
+        let finalHTML = wrapInDocument(bodyHTML: autolinkedHTML, metadata: metadata)
+        return RenderedMarkdownDocument(
+            html: finalHTML,
+            metadata: metadata,
+            headings: anchored.headings
+        )
     }
 
-    public func render(fileURL: URL) throws -> String {
-        try renderDocument(fileURL: fileURL).html
+    public func render(
+        fileURL: URL,
+        options: MarkdownRenderOptions = MarkdownRenderOptions()
+    ) throws -> String {
+        try renderDocument(fileURL: fileURL, options: options).html
     }
 
-    public func renderDocument(fileURL: URL) throws -> RenderedMarkdownDocument {
+    public func renderDocument(
+        fileURL: URL,
+        options: MarkdownRenderOptions = MarkdownRenderOptions()
+    ) throws -> RenderedMarkdownDocument {
         guard fileURL.isFileURL else {
             throw MarkdownRenderError.invalidFileURL(fileURL)
         }
@@ -73,12 +134,106 @@ public struct MarkdownRenderer {
             guard let markdown = String(data: data, encoding: .utf8) else {
                 throw MarkdownRenderError.unsupportedEncoding(fileURL)
             }
-            return try renderDocument(markdown: markdown, title: fileURL.lastPathComponent)
+            return try renderDocument(
+                markdown: markdown,
+                title: fileURL.lastPathComponent,
+                options: options
+            )
         } catch let error as MarkdownRenderError {
             throw error
         } catch {
             throw MarkdownRenderError.unreadableFile(fileURL, error)
         }
+    }
+
+    private func normalizedOptions(for options: MarkdownRenderOptions) -> MarkdownRenderOptions {
+        guard options.fastMode else {
+            return options
+        }
+
+        return MarkdownRenderOptions(
+            syntaxHighlightingEnabled: false,
+            tocExtractionEnabled: false,
+            fastMode: true
+        )
+    }
+
+    private func preprocessMarkdown(_ markdown: String) -> (bodyMarkdown: String, frontMatter: [String: String]) {
+        let lines = markdown.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+        guard let firstLine = lines.first else {
+            return (markdown, [:])
+        }
+
+        guard firstLine.trimmingCharacters(in: .whitespacesAndNewlines) == "---" else {
+            return (markdown, [:])
+        }
+
+        var closingIndex: Int?
+        for index in 1..<lines.count {
+            let line = String(lines[index]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if line == "---" || line == "..." {
+                closingIndex = index
+                break
+            }
+        }
+
+        guard let closingIndex else {
+            return (markdown, [:])
+        }
+
+        let frontMatterLines = lines[1..<closingIndex].map(String.init)
+        let parsedFrontMatter = parseFrontMatter(lines: frontMatterLines)
+
+        let remaining = lines[(closingIndex + 1)...].map(String.init).joined(separator: "\n")
+        return (remaining, parsedFrontMatter)
+    }
+
+    private func parseFrontMatter(lines: [String]) -> [String: String] {
+        var result: [String: String] = [:]
+        var currentKey: String?
+
+        for rawLine in lines {
+            let line = rawLine.trimmingCharacters(in: .whitespaces)
+            if line.isEmpty || line.hasPrefix("#") {
+                continue
+            }
+
+            if rawLine.hasPrefix(" ") || rawLine.hasPrefix("\t"), let currentKey {
+                let extraValue = line
+                if !extraValue.isEmpty {
+                    let existing = result[currentKey] ?? ""
+                    result[currentKey] = existing.isEmpty ? extraValue : "\(existing) \(extraValue)"
+                }
+                continue
+            }
+
+            guard let separatorIndex = line.firstIndex(of: ":") else {
+                continue
+            }
+
+            let rawKey = String(line[..<separatorIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let key = rawKey.lowercased()
+            var value = String(line[line.index(after: separatorIndex)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+
+            if value.hasPrefix("\""), value.hasSuffix("\""), value.count >= 2 {
+                value = String(value.dropFirst().dropLast())
+            } else if value.hasPrefix("'"), value.hasSuffix("'"), value.count >= 2 {
+                value = String(value.dropFirst().dropLast())
+            }
+
+            if value.hasPrefix("["), value.hasSuffix("]"), value.count >= 2 {
+                value = String(value.dropFirst().dropLast())
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "\"'")) }
+                    .filter { !$0.isEmpty }
+                    .joined(separator: ", ")
+            }
+
+            result[key] = value
+            currentKey = key
+        }
+
+        return result
     }
 
     private func sanitize(html: String) -> String {
@@ -123,12 +278,12 @@ public struct MarkdownRenderer {
         return sanitized
     }
 
-    private func addHeadingAnchors(html: String) -> String {
+    private func addHeadingAnchors(html: String, collectTOC: Bool) -> (html: String, headings: [HeadingItem]) {
         guard let regex = try? NSRegularExpression(
             pattern: #"<h([1-6])([^>]*)>([\s\S]*?)</h\1>"#,
             options: [.caseInsensitive]
         ) else {
-            return html
+            return (html, [])
         }
 
         let nsHTML = html as NSString
@@ -138,6 +293,7 @@ public struct MarkdownRenderer {
         let output = NSMutableString(string: html)
         var offset = 0
         var slugCounts: [String: Int] = [:]
+        var headings: [HeadingItem] = []
 
         for match in matches {
             guard
@@ -152,31 +308,51 @@ public struct MarkdownRenderer {
             let level = String(html[levelRange])
             let attributes = String(html[attrsRange])
             let innerHTML = String(html[innerRange])
-
-            if attributes.range(of: #"\bid\s*="#, options: .regularExpression) != nil {
-                continue
-            }
+            let levelNumber = Int(level) ?? 1
 
             let plainText = innerHTML
                 .replacing(pattern: #"<[^>]+>"#, with: "")
                 .decodeBasicHTMLEntities()
+                .collapsingWhitespace()
 
-            let baseSlug = slugifyHeading(plainText)
-            let count = (slugCounts[baseSlug] ?? 0) + 1
-            slugCounts[baseSlug] = count
-
-            let uniqueSlug = count == 1 ? baseSlug : "\(baseSlug)-\(count)"
-            let replacement = "<h\(level)\(attributes) id=\"\(uniqueSlug)\">\(innerHTML)</h\(level)>"
-
-            let adjustedRange = NSRange(
-                location: match.range.location + offset,
-                length: match.range.length
+            let existingID = attributes.firstMatch(
+                pattern: #"\bid\s*=\s*\"([^\"]+)\""#,
+                options: [.caseInsensitive]
+            ) ?? attributes.firstMatch(
+                pattern: #"\bid\s*=\s*'([^']+)'"#,
+                options: [.caseInsensitive]
             )
-            output.replaceCharacters(in: adjustedRange, with: replacement)
-            offset += (replacement as NSString).length - match.range.length
+
+            let anchor: String
+            let replacement: String?
+            if let existingID {
+                anchor = existingID
+                replacement = nil
+            } else {
+                let baseSlug = slugifyHeading(plainText)
+                let count = (slugCounts[baseSlug] ?? 0) + 1
+                slugCounts[baseSlug] = count
+
+                let uniqueSlug = count == 1 ? baseSlug : "\(baseSlug)-\(count)"
+                anchor = uniqueSlug
+                replacement = "<h\(level)\(attributes) id=\"\(uniqueSlug)\">\(innerHTML)</h\(level)>"
+            }
+
+            if collectTOC, !plainText.isEmpty {
+                headings.append(HeadingItem(level: levelNumber, text: plainText, anchor: anchor))
+            }
+
+            if let replacement {
+                let adjustedRange = NSRange(
+                    location: match.range.location + offset,
+                    length: match.range.length
+                )
+                output.replaceCharacters(in: adjustedRange, with: replacement)
+                offset += (replacement as NSString).length - match.range.length
+            }
         }
 
-        return output as String
+        return (output as String, headings)
     }
 
     private func highlightCodeBlocks(html: String) -> String {
@@ -226,6 +402,124 @@ public struct MarkdownRenderer {
         }
 
         return output as String
+    }
+
+    private func addAutolinks(to html: String) -> String {
+        var result = ""
+        var index = html.startIndex
+        var protectedDepthByTag: [String: Int] = [:]
+
+        while index < html.endIndex {
+            if html[index] == "<" {
+                guard let tagEnd = html[index...].firstIndex(of: ">") else {
+                    result.append(contentsOf: html[index...])
+                    break
+                }
+
+                let tagText = String(html[index...tagEnd])
+                result += tagText
+                updateProtectedTagDepths(withTag: tagText, depths: &protectedDepthByTag)
+                index = html.index(after: tagEnd)
+                continue
+            }
+
+            let textEnd = html[index...].firstIndex(of: "<") ?? html.endIndex
+            let textChunk = String(html[index..<textEnd])
+
+            if isInsideProtectedTag(protectedDepthByTag) {
+                result += textChunk
+            } else {
+                result += linkifyPlainURLs(in: textChunk)
+            }
+            index = textEnd
+        }
+
+        return result
+    }
+
+    private func isInsideProtectedTag(_ depths: [String: Int]) -> Bool {
+        (depths["code"] ?? 0) > 0 || (depths["pre"] ?? 0) > 0 || (depths["a"] ?? 0) > 0
+    }
+
+    private func updateProtectedTagDepths(withTag tagText: String, depths: inout [String: Int]) {
+        guard tagText.hasPrefix("<"), tagText.hasSuffix(">") else {
+            return
+        }
+
+        let core = tagText.dropFirst().dropLast().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !core.isEmpty else {
+            return
+        }
+        guard !core.hasPrefix("!") && !core.hasPrefix("?") else {
+            return
+        }
+
+        var isClosing = false
+        var nameStart = core.startIndex
+        if core.hasPrefix("/") {
+            isClosing = true
+            nameStart = core.index(after: core.startIndex)
+        }
+
+        let nameEnd = core[nameStart...].firstIndex(where: { $0.isWhitespace || $0 == "/" }) ?? core.endIndex
+        let tagName = core[nameStart..<nameEnd].lowercased()
+        guard tagName == "code" || tagName == "pre" || tagName == "a" else {
+            return
+        }
+
+        let isSelfClosing = core.hasSuffix("/")
+        if isSelfClosing {
+            return
+        }
+
+        if isClosing {
+            let current = depths[tagName] ?? 0
+            depths[tagName] = max(0, current - 1)
+        } else {
+            depths[tagName] = (depths[tagName] ?? 0) + 1
+        }
+    }
+
+    private func linkifyPlainURLs(in text: String) -> String {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"(?i)\bhttps?://[^\s<]+"#
+        ) else {
+            return text
+        }
+
+        let nsText = text as NSString
+        let range = NSRange(location: 0, length: nsText.length)
+        let matches = regex.matches(in: text, options: [], range: range)
+        guard !matches.isEmpty else {
+            return text
+        }
+
+        var output = text
+        for match in matches.reversed() {
+            let rawURL = nsText.substring(with: match.range)
+            let split = splitURLAndTrailingPunctuation(rawURL)
+            guard !split.url.isEmpty else {
+                continue
+            }
+
+            let linked = "<a href=\"\(split.url)\">\(split.url)</a>\(split.trailing)"
+            let outputRange = Range(match.range, in: output)!
+            output.replaceSubrange(outputRange, with: linked)
+        }
+        return output
+    }
+
+    private func splitURLAndTrailingPunctuation(_ input: String) -> (url: String, trailing: String) {
+        let trailingCharset = CharacterSet(charactersIn: ".,;:!?)]}")
+        var trimmed = input
+        var trailing = ""
+
+        while let last = trimmed.unicodeScalars.last, trailingCharset.contains(last) {
+            trailing = String(last) + trailing
+            trimmed.removeLast()
+        }
+
+        return (trimmed, trailing)
     }
 
     private func codeLanguage(fromClass classString: String) -> String? {
@@ -350,7 +644,11 @@ public struct MarkdownRenderer {
         }
     }
 
-    private func buildMetadata(fromBodyHTML bodyHTML: String, fallbackTitle: String) -> MarkdownRenderMetadata {
+    private func buildMetadata(
+        fromBodyHTML bodyHTML: String,
+        fallbackTitle: String,
+        frontMatter: [String: String]
+    ) -> MarkdownRenderMetadata {
         let firstHeading = extractFirstMatch(
             pattern: #"<h1[^>]*>([\s\S]*?)</h1>"#,
             in: bodyHTML
@@ -366,9 +664,27 @@ public struct MarkdownRenderer {
             .decodeBasicHTMLEntities()
             .collapsingWhitespace()
 
-        let title = (firstHeading?.isEmpty == false ? firstHeading! : fallbackTitle)
-        let description = (firstParagraph?.isEmpty == false ? firstParagraph! : searchableText.prefix(220).description)
-        let keywords = extractKeywords(from: searchableText)
+        let frontMatterTitle = frontMatter["title"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let frontMatterDescription = frontMatter["description"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let frontMatterKeywords = frontMatter["tags"] ?? frontMatter["keywords"]
+
+        let title = (frontMatterTitle?.isEmpty == false)
+            ? frontMatterTitle!
+            : (firstHeading?.isEmpty == false ? firstHeading! : fallbackTitle)
+
+        let description = (frontMatterDescription?.isEmpty == false)
+            ? frontMatterDescription!
+            : (firstParagraph?.isEmpty == false ? firstParagraph! : searchableText.prefix(220).description)
+
+        let keywords: [String]
+        if let frontMatterKeywords, !frontMatterKeywords.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            keywords = frontMatterKeywords
+                .split(whereSeparator: { $0 == "," || $0 == ";" })
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+        } else {
+            keywords = extractKeywords(from: searchableText)
+        }
 
         return MarkdownRenderMetadata(
             title: title,

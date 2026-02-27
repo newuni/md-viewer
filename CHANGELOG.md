@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+## [0.1.6] - 2026-02-27
+
+### Added
+
+- Collapsible outline sidebar based on extracted heading anchors (`h1`-`h4`).
+- In-document search UI with `Cmd+F`, next/previous navigation, and case-sensitive mode.
+- Large-file banner with manual fast mode toggle for documents `>= 5MB`.
+- `MarkdownRenderOptions` and `HeadingItem` APIs in `MarkdownRendererCore`.
+- Front matter parsing at file start (`--- ... ---`) so metadata blocks are not rendered as content.
+- Tests covering core GitHub-flavored Markdown constructs (tables, task lists, strikethrough).
+- Autolinking of plain `http(s)` URLs outside protected tags (`code`, `pre`, and existing `a`).
+- Release workflow step to sync repository About (description/homepage/topics) to each tagged release.
+
+### Changed
+
+- `RenderedMarkdownDocument` now includes extracted headings.
+- Fast mode now disables syntax highlighting and TOC extraction while keeping anchor navigation.
+- Added tests for render options (`fastMode`, TOC-disabled rendering, heading extraction).
+- Front matter values now feed metadata extraction (`title`, `description`, `tags`/`keywords`) when present.
+
 ## [0.1.5] - 2026-02-27
 
 ### Added

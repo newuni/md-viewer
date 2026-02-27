@@ -56,3 +56,10 @@ jobs:
             ```bash
             xattr -dr com.apple.quarantine /Applications/MDViewer.app
             ```
+
+      - name: Sync repository About with this release
+        env:
+          REPO_METADATA_TOKEN: ${{ secrets.REPO_METADATA_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: ./scripts/sync_repo_about.sh

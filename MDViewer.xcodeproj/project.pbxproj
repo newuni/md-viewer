@@ -11,6 +11,7 @@
 		10F2CC55D54996AB11AD8FBF /* PreviewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 735307FF94E1A0C3A1CA9655 /* PreviewProvider.swift */; };
 		1C869CFCF40CCADD9BC04420 /* MarkdownRendererCore in Frameworks */ = {isa = PBXBuildFile; productRef = 366210B2165B53CDE4ED47F4 /* MarkdownRendererCore */; };
 		3C82DBA877887C42C1D96180 /* HTMLWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8111AC3A21253FBE55A373E4 /* HTMLWebView.swift */; };
+		67E74175658935DBA8367255 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B9719327F14086E298339788 /* Assets.xcassets */; };
 		681090D7ECA6AC2400FDF2AB /* MDViewerAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3601756B548AF1A2893068A7 /* MDViewerAppTests.swift */; };
 		83DFFC6D386DA37ABF89D143 /* MarkdownDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9557F2436B9DFBB9B4FEABBA /* MarkdownDocument.swift */; };
 		893547CF9AC8B43A49DA1560 /* MDViewerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7738498AE416EE9CAB537D19 /* MDViewerApp.swift */; };
@@ -63,6 +64,7 @@
 		9557F2436B9DFBB9B4FEABBA /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
 		9CA10FC3C61C08E0DEFAD920 /* MDViewerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MDViewerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD164968DEB4C856346579F4 /* MDViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MDViewerUITests.swift; sourceTree = "<group>"; };
+		B9719327F14086E298339788 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		C21A8F34F87735015359FDC9 /* md-viewer */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "md-viewer"; path = .; sourceTree = SOURCE_ROOT; };
 		FBCA8FB4C3F590F79859224D /* MDViewerApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MDViewerApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -134,6 +136,7 @@
 		5ED53C41E586F4A11B0FF2DB /* App */ = {
 			isa = PBXGroup;
 			children = (
+				916D018F70089E0D27CFD1E9 /* Resources */,
 				45450E6B8449791413171E5D /* Sources */,
 				3333A160D4AD3FA94B943A64 /* Tests */,
 			);
@@ -146,6 +149,14 @@
 				BC833A77D028B20295AEC5DC /* MDViewerQuickLookExtension */,
 			);
 			path = Extensions;
+			sourceTree = "<group>";
+		};
+		916D018F70089E0D27CFD1E9 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B9719327F14086E298339788 /* Assets.xcassets */,
+			);
+			path = Resources;
 			sourceTree = "<group>";
 		};
 		948C07D6D92DE79B515C2B00 = {
@@ -202,6 +213,7 @@
 			buildConfigurationList = E23F61918046A08324A9E9E1 /* Build configuration list for PBXNativeTarget "MDViewerApp" */;
 			buildPhases = (
 				E6C3FABDB1F6C3519CE189F8 /* Sources */,
+				02216538B7A9E05E73292DC5 /* Resources */,
 				DFD8A2C88737A6E8B8765AFD /* Frameworks */,
 				9F0AB0E10233583F70F2A4D5 /* Embed Foundation Extensions */,
 			);
@@ -312,6 +324,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		02216538B7A9E05E73292DC5 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				67E74175658935DBA8367255 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		D1A41416676D87741912F5DA /* Sources */ = {

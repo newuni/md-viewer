@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.1] - 2026-02-27
+
+### Added
+
+- Generated native `AppIcon` asset set and wired it into the macOS app target.
+
+### Fixed
+
+- Replaced `UTType.markdown` with extension-derived UTTypes for CI/Xcode SDK compatibility.
+- Tightened Quick Look type registration to prioritize Markdown preview rendering over plain text fallback.
+
 ## [0.1.0] - 2026-02-27
 
 ### Added

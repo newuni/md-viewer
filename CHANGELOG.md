@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 
 - Replaced `UTType.markdown` with extension-derived UTTypes for CI/Xcode SDK compatibility.
 - Tightened Quick Look type registration to prioritize Markdown preview rendering over plain text fallback.
+- Regenerated all app icon assets with exact required pixel sizes to avoid fallback to generic icons.
 
 ## [0.1.0] - 2026-02-27
 

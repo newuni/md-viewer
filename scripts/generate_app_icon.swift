@@ -30,11 +30,31 @@ let appIconDir = assetsDir.appendingPathComponent("AppIcon.appiconset", isDirect
 try fileManager.createDirectory(at: assetsDir, withIntermediateDirectories: true)
 try fileManager.createDirectory(at: appIconDir, withIntermediateDirectories: true)
 
-func drawIcon(size px: Int) -> NSImage {
-    let image = NSImage(size: NSSize(width: px, height: px))
-    image.lockFocus()
+func makeBitmap(px: Int) throws -> NSBitmapImageRep {
+    guard let bitmap = NSBitmapImageRep(
+        bitmapDataPlanes: nil,
+        pixelsWide: px,
+        pixelsHigh: px,
+        bitsPerSample: 8,
+        samplesPerPixel: 4,
+        hasAlpha: true,
+        isPlanar: false,
+        colorSpaceName: .deviceRGB,
+        bytesPerRow: 0,
+        bitsPerPixel: 0
+    ) else {
+        throw NSError(domain: "icon-gen", code: 2, userInfo: [NSLocalizedDescriptionKey: "Failed to create bitmap"])
+    }
+    return bitmap
+}
 
-    defer { image.unlockFocus() }
+func drawIcon(on bitmap: NSBitmapImageRep, px: Int) {
+    guard let context = NSGraphicsContext(bitmapImageRep: bitmap) else {
+        return
+    }
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = context
+    defer { NSGraphicsContext.restoreGraphicsState() }
 
     let rect = NSRect(x: 0, y: 0, width: px, height: px)
     NSColor(calibratedRed: 0.95, green: 0.97, blue: 1.0, alpha: 1.0).setFill()
@@ -84,14 +104,10 @@ func drawIcon(size px: Int) -> NSImage {
     let pupil = NSBezierPath(ovalIn: NSRect(x: eyeCenter.x - CGFloat(px) * 0.05, y: eyeCenter.y - CGFloat(px) * 0.05, width: CGFloat(px) * 0.1, height: CGFloat(px) * 0.1))
     NSColor(calibratedRed: 0.15, green: 0.33, blue: 0.61, alpha: 0.95).setFill()
     pupil.fill()
-
-    return image
 }
 
-func writePNG(image: NSImage, to url: URL, pixels: Int) throws {
-    guard let tiffData = image.tiffRepresentation,
-          let bitmap = NSBitmapImageRep(data: tiffData),
-          let pngData = bitmap.representation(using: .png, properties: [:]) else {
+func writePNG(bitmap: NSBitmapImageRep, to url: URL) throws {
+    guard let pngData = bitmap.representation(using: .png, properties: [:]) else {
         throw NSError(domain: "icon-gen", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert icon image to PNG"])
     }
 
@@ -99,9 +115,10 @@ func writePNG(image: NSImage, to url: URL, pixels: Int) throws {
 }
 
 for spec in specs {
-    let image = drawIcon(size: spec.pixels)
+    let bitmap = try makeBitmap(px: spec.pixels)
+    drawIcon(on: bitmap, px: spec.pixels)
     let iconURL = appIconDir.appendingPathComponent(spec.filename)
-    try writePNG(image: image, to: iconURL, pixels: spec.pixels)
+    try writePNG(bitmap: bitmap, to: iconURL)
 }
 
 let appIconContents: [String: Any] = [

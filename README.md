@@ -77,6 +77,9 @@ xattr -dr com.apple.quarantine /Applications/MDViewer.app
 
 Pressing `space` in Finder should render Markdown directly with the extension. The `Open with MDViewer` button is system UI and cannot be removed, but you should not need to click it for preview.
 
+Important: Quick Look extensions are only loaded when the host app is properly code-signed. Unsigned release builds can still open files, but Finder may fallback to plain text preview.
+For local development, open the Xcode project and set a team in `Signing & Capabilities` for `MDViewerApp` and `MDViewerQuickLookExtension`.
+
 If Finder still shows plain text preview, refresh Quick Look services:
 
 ```bash

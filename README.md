@@ -12,7 +12,7 @@ macOS preview support for `.md` files is inconsistent across tools and workflows
 
 ## Status
 
-Early MVP. Initial focus is reliability and local Markdown rendering.
+MVP with live refresh, anchor navigation, and Quick Look integration.
 
 ## Features
 
@@ -20,6 +20,10 @@ Early MVP. Initial focus is reliability and local Markdown rendering.
 - Quick Look extension (`space` in Finder) for Markdown previews.
 - HTML export from CLI for debugging and integrations.
 - Basic HTML sanitization to strip active script content.
+- Automatic heading anchors so table-of-contents links (`#...`) work.
+- Lightweight syntax highlighting for fenced code blocks (Swift/JS/TS/Python/Shell/SQL).
+- Live preview refresh when the source file changes on disk.
+- Enriched Quick Look preview metadata (title/description/keywords extraction).
 
 ## Requirements
 

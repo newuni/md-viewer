@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.5] - 2026-02-27
+
+### Added
+
+- Lightweight syntax highlighting for fenced code blocks (Swift/JS/TS/Python/Shell/SQL).
+- File watching in the app to auto-refresh preview when the Markdown file changes on disk.
+- Metadata extraction (`title`, `description`, `keywords`, searchable text) in `MarkdownRendererCore`.
+- New renderer APIs returning both HTML and extracted metadata.
+- Additional test coverage for syntax highlighting and metadata generation.
+
+### Changed
+
+- Quick Look preview now uses extracted document title and includes metadata attachment.
+- Extension metadata now declares support for searchable items.
+
 ## [0.1.4] - 2026-02-27
 
 ### Added

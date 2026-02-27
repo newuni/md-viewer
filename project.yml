@@ -78,6 +78,7 @@ targets:
           NSExtensionAttributes:
             QLSupportedContentTypes:
               - net.daringfireball.markdown
+            QLSupportsSearchableItems: true
   MDViewerTests:
     type: bundle.unit-test
     platform: macOS

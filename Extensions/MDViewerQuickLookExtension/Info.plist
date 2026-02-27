@@ -26,6 +26,8 @@
 			<array>
 				<string>net.daringfireball.markdown</string>
 			</array>
+			<key>QLSupportsSearchableItems</key>
+			<true/>
 		</dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.quicklook.preview</string>

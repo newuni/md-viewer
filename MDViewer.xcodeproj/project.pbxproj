@@ -17,6 +17,7 @@
 		893547CF9AC8B43A49DA1560 /* MDViewerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7738498AE416EE9CAB537D19 /* MDViewerApp.swift */; };
 		8BFA6E94B32B3FD2E33B3AD8 /* MarkdownRendererCore in Frameworks */ = {isa = PBXBuildFile; productRef = 8CDFAA8F2CC2A325955EDC9E /* MarkdownRendererCore */; };
 		B0BA29CB6377451385D7B8CF /* MarkdownDocumentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B7D06E17F4A5B3BA333F6F /* MarkdownDocumentView.swift */; };
+		D696248E60D769F779CD1422 /* MarkdownFileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A1B82DD7CF221E9568FA15D /* MarkdownFileWatcher.swift */; };
 		E5BBAEE1F12E67FFBD40A36A /* MDViewerUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD164968DEB4C856346579F4 /* MDViewerUITests.swift */; };
 		FA7273C3284B97A73BED5933 /* MarkdownRendererCore in Frameworks */ = {isa = PBXBuildFile; productRef = 6C81CA99DFB81699206DE76A /* MarkdownRendererCore */; };
 /* End PBXBuildFile section */
@@ -62,6 +63,7 @@
 		8111AC3A21253FBE55A373E4 /* HTMLWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLWebView.swift; sourceTree = "<group>"; };
 		8D028C15990024AA3067F7FE /* MDViewerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MDViewerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9557F2436B9DFBB9B4FEABBA /* MarkdownDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownDocument.swift; sourceTree = "<group>"; };
+		9A1B82DD7CF221E9568FA15D /* MarkdownFileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFileWatcher.swift; sourceTree = "<group>"; };
 		9CA10FC3C61C08E0DEFAD920 /* MDViewerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MDViewerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		AD164968DEB4C856346579F4 /* MDViewerUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MDViewerUITests.swift; sourceTree = "<group>"; };
 		B9719327F14086E298339788 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -192,6 +194,7 @@
 				8111AC3A21253FBE55A373E4 /* HTMLWebView.swift */,
 				9557F2436B9DFBB9B4FEABBA /* MarkdownDocument.swift */,
 				47B7D06E17F4A5B3BA333F6F /* MarkdownDocumentView.swift */,
+				9A1B82DD7CF221E9568FA15D /* MarkdownFileWatcher.swift */,
 				7738498AE416EE9CAB537D19 /* MDViewerApp.swift */,
 			);
 			path = MDViewerApp;
@@ -361,6 +364,7 @@
 				893547CF9AC8B43A49DA1560 /* MDViewerApp.swift in Sources */,
 				83DFFC6D386DA37ABF89D143 /* MarkdownDocument.swift in Sources */,
 				B0BA29CB6377451385D7B8CF /* MarkdownDocumentView.swift in Sources */,
+				D696248E60D769F779CD1422 /* MarkdownFileWatcher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

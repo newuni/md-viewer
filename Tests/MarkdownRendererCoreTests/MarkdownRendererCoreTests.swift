@@ -106,4 +106,37 @@ struct MarkdownRendererCoreTests {
         #expect(html.contains("<ul>"))
         #expect(html.count > 1_000_000)
     }
+
+    @Test
+    func highlightsSwiftCodeBlocks() throws {
+        let markdown = """
+        ```swift
+        let total = 42
+        // note
+        if total > 10 { return }
+        ```
+        """
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("class=\"tok-keyword\">let</span>"))
+        #expect(html.contains("class=\"tok-number\">42</span>"))
+        #expect(html.contains("class=\"tok-comment\">// note</span>"))
+    }
+
+    @Test
+    func includesDocumentMetadataTags() throws {
+        let markdown = """
+        # Build release docs
+
+        This markdown file describes release automation.
+        """
+
+        let rendered = try renderer.renderDocument(markdown: markdown, title: "fallback.md")
+
+        #expect(rendered.metadata.title == "Build release docs")
+        #expect(rendered.metadata.description.contains("release automation"))
+        #expect(rendered.html.contains("<meta name=\"description\""))
+        #expect(rendered.html.contains("<meta name=\"keywords\""))
+    }
 }

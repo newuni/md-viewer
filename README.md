@@ -12,7 +12,7 @@ macOS preview support for `.md` files is inconsistent across tools and workflows
 
 ## Status
 
-MVP with live refresh, anchor navigation, and Quick Look integration.
+Public beta: core workflow is complete (app preview, Quick Look, live refresh, TOC anchors, syntax highlighting, and CLI export). Current focus is release hardening (code signing, notarization, and performance tuning).
 
 ## Features
 

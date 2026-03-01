@@ -53,11 +53,11 @@ struct NativeMarkdownTextView: NSViewRepresentable {
         textView.textContainerInset = NSSize(width: 20, height: 20)
         textView.usesAdaptiveColorMappingForDarkAppearance = true
         textView.minSize = NSSize(width: 0, height: 0)
-        textView.maxSize = NSSize(width: .greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
         textView.isVerticallyResizable = true
         textView.isHorizontallyResizable = false
         textView.autoresizingMask = [.width]
-        textView.textContainer?.containerSize = NSSize(width: 0, height: .greatestFiniteMagnitude)
+        textView.textContainer?.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
         textView.textContainer?.widthTracksTextView = true
 
         let scrollView = NSScrollView(frame: .zero)

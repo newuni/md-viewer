@@ -27,7 +27,12 @@ Public beta: core workflow is complete. The app and Quick Look now use a **nativ
 - Lightweight syntax highlighting for fenced code blocks (Swift/JS/TS/Python/Shell/SQL).
 - Live preview refresh when the source file changes on disk.
 - Find-in-document (`Cmd+F`) with next/previous navigation and case-sensitive toggle.
-- Collapsible outline sidebar for heading navigation (`h1`-`h4`).
+- Collapsible outline sidebar for heading navigation (`h1`-`h4`) with active-section sync while you scroll.
+- Copy-link action for headings directly from the outline context menu.
+- Command Palette (`Cmd+K`) for quick actions (outline/theme/fast mode/open/export/reading mode/paste preview).
+- Ultra-clean Reading Mode (`Ctrl+Cmd+R`) with centered text and hidden chrome.
+- Quick paste-preview (`Cmd+Shift+V`) to open Markdown from clipboard without creating a file.
+- Typography zoom shortcuts (`Cmd+=`, `Cmd+-`, `Cmd+0`).
 - Large-file handling with automatic tiers and optional manual fast mode override.
 - Front matter support (`--- ... ---`) without rendering it as document content.
 - GitHub-flavored Markdown baseline support (tables, task lists, strikethrough).

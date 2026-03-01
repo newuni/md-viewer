@@ -11,6 +11,16 @@
 
 ## Near term
 
+### New minimalist viewer pass
+
+- [x] Add command palette (`Cmd+K`) with core viewer actions.
+- [x] Add ultra-clean Reading Mode (`Ctrl+Cmd+R`).
+- [x] Add copy-link action for headings in the outline.
+- [x] Sync outline highlight with current reading section while scrolling.
+- [x] Add quick paste-preview flow from clipboard (`Cmd+Shift+V`).
+- [x] Add typography zoom shortcuts (`Cmd+=`, `Cmd+-`, `Cmd+0`).
+
+
 - [x] Improve syntax highlighting for fenced code blocks.
 - [x] Add file change watching for live preview refresh.
 - [x] Add richer Quick Look metadata/search support.

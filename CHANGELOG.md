@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- Command Palette (`Cmd+K`) with actions for outline toggle, theme switch, fast mode toggle, Open With, HTML export, reading mode, and paste-preview.
+- Ultra-clean Reading Mode (`Ctrl+Cmd+R`) that hides chrome and keeps content centered.
+- Outline context action to copy a link to any heading anchor.
+- Quick paste-preview flow (`Cmd+Shift+V`) to render clipboard Markdown instantly.
+- Typography zoom shortcuts (`Cmd+=`, `Cmd+-`, `Cmd+0`).
+
+### Changed
+
+- TOC now stays in sync with scroll position and highlights the active heading in both native and HTML fallback renderers.
+
 ## [0.1.14] - 2026-03-01
 
 ### Changed

@@ -39,9 +39,10 @@ struct NativeMarkdownTextView: NSViewRepresentable {
     var searchRequest: SearchRequest?
     var scrollRequest: ScrollRequest?
     var onSearchResult: (Bool) -> Void = { _ in }
+    var onActiveHeadingChange: (String?) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onSearchResult: onSearchResult)
+        Coordinator(onSearchResult: onSearchResult, onActiveHeadingChange: onActiveHeadingChange)
     }
 
     func makeNSView(context: Context) -> NSScrollView {
@@ -68,11 +69,15 @@ struct NativeMarkdownTextView: NSViewRepresentable {
         scrollView.documentView = textView
 
         context.coordinator.textView = textView
+        context.coordinator.scrollView = scrollView
+        NotificationCenter.default.addObserver(context.coordinator, selector: #selector(Coordinator.didScroll), name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
+        scrollView.contentView.postsBoundsChangedNotifications = true
         return scrollView
     }
 
     func updateNSView(_ scrollView: NSScrollView, context: Context) {
         context.coordinator.onSearchResult = onSearchResult
+        context.coordinator.onActiveHeadingChange = onActiveHeadingChange
         context.coordinator.headingOffsets = headingOffsets
         guard let textView = scrollView.documentView as? NSTextView else {
             return
@@ -95,19 +100,24 @@ struct NativeMarkdownTextView: NSViewRepresentable {
     @MainActor
     final class Coordinator: NSObject {
         weak var textView: NSTextView?
+        weak var scrollView: NSScrollView?
         var onSearchResult: (Bool) -> Void
+        var onActiveHeadingChange: (String?) -> Void
         var headingOffsets: [String: Int] = [:]
         var lastContentSignature = 0
         var lastSearchRequestID: UUID?
         var lastScrollRequestID: UUID?
         var pendingSearchRequest: SearchRequest?
         var pendingScrollRequest: ScrollRequest?
+        var sortedHeadingOffsets: [(String, Int)] = []
 
-        init(onSearchResult: @escaping (Bool) -> Void) {
+        init(onSearchResult: @escaping (Bool) -> Void, onActiveHeadingChange: @escaping (String?) -> Void) {
             self.onSearchResult = onSearchResult
+            self.onActiveHeadingChange = onActiveHeadingChange
         }
 
         func handle(searchRequest: SearchRequest?, scrollRequest: ScrollRequest?) {
+            sortedHeadingOffsets = headingOffsets.sorted { $0.value < $1.value }
             if let searchRequest, searchRequest.id != lastSearchRequestID {
                 lastSearchRequestID = searchRequest.id
                 pendingSearchRequest = searchRequest
@@ -190,6 +200,39 @@ struct NativeMarkdownTextView: NSViewRepresentable {
             onSearchResult(true)
         }
 
+
+        @objc func didScroll(_ notification: Notification) {
+            updateActiveHeadingFromVisibleRange()
+        }
+
+        private func updateActiveHeadingFromVisibleRange() {
+            guard let textView else { return }
+            if sortedHeadingOffsets.isEmpty {
+                sortedHeadingOffsets = headingOffsets.sorted { $0.value < $1.value }
+            }
+            guard !sortedHeadingOffsets.isEmpty else {
+                onActiveHeadingChange(nil)
+                return
+            }
+
+            guard let layoutManager = textView.layoutManager,
+                  let textContainer = textView.textContainer else { return }
+
+            let visiblePoint = NSPoint(x: textView.visibleRect.minX + 8, y: textView.visibleRect.minY + textView.textContainerInset.height + 8)
+            let glyphIndex = layoutManager.glyphIndex(for: visiblePoint, in: textContainer)
+            let characterIndex = layoutManager.characterIndexForGlyph(at: glyphIndex)
+
+            var active: String?
+            for (anchor, offset) in sortedHeadingOffsets {
+                if offset <= characterIndex {
+                    active = anchor
+                } else {
+                    break
+                }
+            }
+            onActiveHeadingChange(active ?? sortedHeadingOffsets.first?.0)
+        }
+
         private func executeScroll(request: ScrollRequest) {
             guard let textView else {
                 return
@@ -206,6 +249,7 @@ struct NativeMarkdownTextView: NSViewRepresentable {
             let target = NSRange(location: location, length: 0)
             textView.setSelectedRange(target)
             textView.scrollRangeToVisible(target)
+            updateActiveHeadingFromVisibleRange()
         }
     }
 }

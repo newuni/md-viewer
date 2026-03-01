@@ -38,13 +38,16 @@ struct HTMLWebView: NSViewRepresentable {
     var searchRequest: SearchRequest?
     var scrollRequest: ScrollRequest?
     var onSearchResult: (Bool) -> Void = { _ in }
+    var onActiveHeadingChange: (String?) -> Void = { _ in }
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onSearchResult: onSearchResult)
+        Coordinator(onSearchResult: onSearchResult, onActiveHeadingChange: onActiveHeadingChange)
     }
 
     func makeNSView(context: Context) -> WKWebView {
-        let webView = WKWebView()
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(context.coordinator, name: "activeHeading")
+        let webView = WKWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
         webView.navigationDelegate = context.coordinator
         context.coordinator.webView = webView
@@ -53,6 +56,7 @@ struct HTMLWebView: NSViewRepresentable {
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onSearchResult = onSearchResult
+        context.coordinator.onActiveHeadingChange = onActiveHeadingChange
 
         if context.coordinator.lastHTML != html {
             context.coordinator.lastHTML = html
@@ -66,7 +70,7 @@ struct HTMLWebView: NSViewRepresentable {
         )
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         weak var webView: WKWebView?
         var lastHTML = ""
         var isPageLoaded = false
@@ -75,14 +79,26 @@ struct HTMLWebView: NSViewRepresentable {
         var pendingSearchRequest: SearchRequest?
         var pendingScrollRequest: ScrollRequest?
         var onSearchResult: (Bool) -> Void
+        var onActiveHeadingChange: (String?) -> Void
 
-        init(onSearchResult: @escaping (Bool) -> Void) {
+        init(onSearchResult: @escaping (Bool) -> Void, onActiveHeadingChange: @escaping (String?) -> Void) {
             self.onSearchResult = onSearchResult
+            self.onActiveHeadingChange = onActiveHeadingChange
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isPageLoaded = true
+            installScrollSync(on: webView)
             applyPendingCommands()
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "activeHeading" else { return }
+            if let anchor = message.body as? String, !anchor.isEmpty {
+                onActiveHeadingChange(anchor)
+            } else {
+                onActiveHeadingChange(nil)
+            }
         }
 
         func handle(searchRequest: SearchRequest?, scrollRequest: ScrollRequest?) {
@@ -97,6 +113,35 @@ struct HTMLWebView: NSViewRepresentable {
             }
 
             applyPendingCommands()
+        }
+
+
+        private func installScrollSync(on webView: WKWebView) {
+            let script = """
+            (() => {
+                const headings = Array.from(document.querySelectorAll('h1[id],h2[id],h3[id],h4[id]'));
+                const notify = () => {
+                    if (!headings.length) {
+                        window.webkit.messageHandlers.activeHeading.postMessage('');
+                        return;
+                    }
+                    const threshold = 120;
+                    let active = headings[0].id;
+                    for (const h of headings) {
+                        const top = h.getBoundingClientRect().top;
+                        if (top <= threshold) active = h.id;
+                        else break;
+                    }
+                    window.webkit.messageHandlers.activeHeading.postMessage(active || '');
+                };
+                window.__mdvNotifyActiveHeading = notify;
+                window.removeEventListener('scroll', notify);
+                window.addEventListener('scroll', notify, { passive: true });
+                notify();
+            })();
+            """
+            webView.evaluateJavaScript(script, completionHandler: nil)
+            webView.evaluateJavaScript("window.__mdvNotifyActiveHeading && window.__mdvNotifyActiveHeading();", completionHandler: nil)
         }
 
         private func applyPendingCommands() {
@@ -172,6 +217,7 @@ struct HTMLWebView: NSViewRepresentable {
             })();
             """
             webView.evaluateJavaScript(script, completionHandler: nil)
+            webView.evaluateJavaScript("window.__mdvNotifyActiveHeading && window.__mdvNotifyActiveHeading();", completionHandler: nil)
         }
 
         private func javascriptQuotedString(_ value: String) -> String {

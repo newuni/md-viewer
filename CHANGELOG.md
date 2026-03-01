@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-03-01
+
+### Fixed
+
+- Preserve `<body>` markup without empty class attribute to keep renderer output compatible with existing tests and consumers.
+- Restore release pipeline stability after the 0.1.7 tag failed in `Swift package tests`.
+
 ## [0.1.7] - 2026-03-01
 
 ### Added

@@ -786,6 +786,7 @@ public struct MarkdownRenderer {
         let darkClass = options.appearance == .dark ? "theme-dark" : ""
         let lightClass = options.appearance == .light ? "theme-light" : ""
         let bodyClass = [darkClass, lightClass].filter { !$0.isEmpty }.joined(separator: " ")
+        let bodyClassAttribute = bodyClass.isEmpty ? "" : " class=\"\(bodyClass)\""
 
         return """
         <!doctype html>
@@ -894,7 +895,7 @@ public struct MarkdownRenderer {
                 }
             </style>
         </head>
-        <body class="\(bodyClass)">
+        <body\(bodyClassAttribute)>
         \(bodyHTML)
         <div style="position:absolute;left:-99999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">\(escapeHTML(metadata.searchableText))</div>
         </body>

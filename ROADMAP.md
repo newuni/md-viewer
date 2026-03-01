@@ -18,6 +18,13 @@
 - [x] Add collapsible outline sidebar for heading navigation.
 - [x] Add manual fast mode for large files (5MB+).
 
+## Completed after native engine migration
+
+- [x] Migración del motor a ruta de renderizado **nativa** (atribuida) como camino principal en app y Quick Look.
+- [x] Mantener fallback HTML/WebView solo para compatibilidad y resiliencia.
+- [x] Mantener paridad funcional (tema, apariencia, tipografía, búsqueda, TOC, fast mode tiers, Open With).
+- [x] Endurecer pipeline CI/release tras migración hasta volver a verde.
+
 ## Later
 
 - [ ] Signed and notarized release pipeline.

@@ -12,10 +12,13 @@ macOS preview support for `.md` files is inconsistent across tools and workflows
 
 ## Status
 
-Public beta: core workflow is complete (app preview, Quick Look, live refresh, TOC anchors, syntax highlighting, and CLI export). Current focus is release hardening (code signing, notarization, and performance tuning).
+Public beta: core workflow is complete. The app and Quick Look now use a **native rendering path by default** (with HTML/WebView retained as compatibility fallback). Current focus is release hardening (code signing/notarization) and very-large-file performance tuning.
 
 ## Features
 
+- Native renderer path (attributed text) is the default in app and Quick Look.
+- Theme + appearance + typography controls (System/GitHub/Solarized/Dracula, Light/Dark/System, body/code sizes).
+- Automatic render tiers (`small`/`medium`/`large`/`huge`) with manual Fast Mode override.
 - Render `.md` and `.markdown` files with app-level viewing.
 - Quick Look extension (`space` in Finder) for Markdown previews.
 - HTML export from CLI for debugging and integrations.
@@ -25,7 +28,7 @@ Public beta: core workflow is complete (app preview, Quick Look, live refresh, T
 - Live preview refresh when the source file changes on disk.
 - Find-in-document (`Cmd+F`) with next/previous navigation and case-sensitive toggle.
 - Collapsible outline sidebar for heading navigation (`h1`-`h4`).
-- Manual fast mode prompt for files `>= 5MB` to keep previews responsive.
+- Large-file handling with automatic tiers and optional manual fast mode override.
 - Front matter support (`--- ... ---`) without rendering it as document content.
 - GitHub-flavored Markdown baseline support (tables, task lists, strikethrough).
 - Enriched Quick Look preview metadata (title/description/keywords extraction).
@@ -82,13 +85,13 @@ If needed:
 xattr -dr com.apple.quarantine /Applications/MDViewer.app
 ```
 
-## Release automation notes
+## Release workflow
 
-The release workflow can sync the repository **About** section (description, homepage and topics) to the current tag.
+On every `v*` tag, GitHub Actions builds the app and publishes release assets.
 
-- Configure repository secret: `REPO_METADATA_TOKEN` (GitHub token with permission to update repository metadata).
-- On each `v*` tag release, homepage is updated to `https://github.com/<owner>/<repo>/releases/tag/<tag>`.
-- If the secret is missing, the sync step is skipped and the release still succeeds.
+Optional metadata sync:
+- If `REPO_METADATA_TOKEN` is configured, the workflow also updates the repository About section (description/homepage/topics).
+- If the secret is missing, metadata sync is skipped and the release still succeeds.
 
 ## Quick Look behavior
 

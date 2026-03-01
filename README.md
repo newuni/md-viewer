@@ -10,10 +10,6 @@ macOS preview support for `.md` files is inconsistent across tools and workflows
 - A Quick Look extension to preview Markdown directly in Finder.
 - A small CLI (`md-viewer`) for opening files or exporting HTML.
 
-## Status
-
-Public beta: core workflow is complete. The app and Quick Look now use a **native rendering path by default** (with HTML/WebView retained as compatibility fallback). Current focus is release hardening (code signing/notarization) and very-large-file performance tuning.
-
 ## Features
 
 - Native renderer path (attributed text) is the default in app and Quick Look.

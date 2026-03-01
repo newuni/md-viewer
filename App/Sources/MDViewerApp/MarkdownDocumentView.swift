@@ -1,6 +1,14 @@
+import AppKit
 import Foundation
 import SwiftUI
 import MarkdownRendererCore
+
+private enum RenderTier: String {
+    case small
+    case medium
+    case large
+    case huge
+}
 
 struct MarkdownDocumentView: View {
     private static let largeFileThresholdBytes: Int64 = 5 * 1024 * 1024
@@ -25,7 +33,13 @@ struct MarkdownDocumentView: View {
     @State private var scrollRequest: HTMLWebView.ScrollRequest?
 
     @State private var isLargeFile = false
-    @State private var isFastModeEnabled = false
+    @State private var tier: RenderTier = .small
+    @State private var fastModeOverride: Bool?
+
+    @AppStorage("mdviewer.theme") private var selectedThemeRaw = MarkdownTheme.system.rawValue
+    @AppStorage("mdviewer.appearance") private var selectedAppearanceRaw = MarkdownAppearance.system.rawValue
+    @AppStorage("mdviewer.bodyFontSize") private var bodyFontSize = 16
+    @AppStorage("mdviewer.codeFontSize") private var codeFontSize = 14
 
     private let renderer = MarkdownRenderer()
 
@@ -48,11 +62,34 @@ struct MarkdownDocumentView: View {
                 previewContent
             }
         }
-        .task(id: RenderTaskKey(text: effectiveMarkdownText, fastMode: isFastModeEnabled)) {
+        .task(id: RenderTaskKey(text: effectiveMarkdownText, fastMode: isFastModeEnabled, theme: selectedThemeRaw, appearance: selectedAppearanceRaw, bodyFontSize: bodyFontSize, codeFontSize: codeFontSize)) {
             renderCurrentDocument()
         }
         .toolbar {
             ToolbarItemGroup(placement: .automatic) {
+                Menu {
+                    Picker("Theme", selection: $selectedThemeRaw) {
+                        Text("System").tag(MarkdownTheme.system.rawValue)
+                        Text("GitHub").tag(MarkdownTheme.github.rawValue)
+                        Text("Solarized").tag(MarkdownTheme.solarized.rawValue)
+                        Text("Dracula").tag(MarkdownTheme.dracula.rawValue)
+                    }
+
+                    Picker("Appearance", selection: $selectedAppearanceRaw) {
+                        Text("System").tag(MarkdownAppearance.system.rawValue)
+                        Text("Light").tag(MarkdownAppearance.light.rawValue)
+                        Text("Dark").tag(MarkdownAppearance.dark.rawValue)
+                    }
+
+                    Divider()
+
+                    Stepper("Body size: \(bodyFontSize)", value: $bodyFontSize, in: 12...24)
+                    Stepper("Code size: \(codeFontSize)", value: $codeFontSize, in: 11...22)
+                } label: {
+                    Label("Style", systemImage: "paintbrush")
+                }
+                .help("Theme and typography")
+
                 Button {
                     isTOCVisible.toggle()
                 } label: {
@@ -67,6 +104,22 @@ struct MarkdownDocumentView: View {
                 }
                 .keyboardShortcut("f", modifiers: [.command])
                 .help("Find in document")
+
+                Menu {
+                    ForEach(openWithApps, id: \.path) { app in
+                        Button(app.deletingPathExtension().lastPathComponent) {
+                            openCurrentFile(with: app)
+                        }
+                    }
+
+                    if openWithApps.isEmpty {
+                        Text("No applications available")
+                    }
+                } label: {
+                    Label("Open With", systemImage: "square.and.arrow.up")
+                }
+                .help("Open current file with another app")
+                .disabled(fileURL == nil)
             }
         }
         .onChange(of: searchQuery) { _, _ in
@@ -87,6 +140,25 @@ struct MarkdownDocumentView: View {
             watcher?.stop()
             watcher = nil
         }
+    }
+
+    private var selectedTheme: MarkdownTheme {
+        MarkdownTheme(rawValue: selectedThemeRaw) ?? .system
+    }
+
+    private var selectedAppearance: MarkdownAppearance {
+        MarkdownAppearance(rawValue: selectedAppearanceRaw) ?? .system
+    }
+
+    private var isFastModeEnabled: Bool {
+        fastModeOverride ?? tier == .large || tier == .huge
+    }
+
+    private var openWithApps: [URL] {
+        guard let fileURL else { return [] }
+        let ownBundleURL = Bundle.main.bundleURL.standardizedFileURL
+        return NSWorkspace.shared.urlsForApplications(toOpen: fileURL)
+            .filter { $0.standardizedFileURL != ownBundleURL }
     }
 
     private var previewContent: some View {
@@ -114,16 +186,23 @@ struct MarkdownDocumentView: View {
         HStack(spacing: 12) {
             Text("Large document detected (\(Self.largeFileThresholdBytes / (1024 * 1024))MB+).")
                 .font(.callout)
-            Text(isFastModeEnabled ? "Fast mode is enabled." : "Enable fast mode for smoother scrolling.")
+            Text(isFastModeEnabled ? "Fast mode is enabled (\(tier.rawValue))." : "Fast mode is disabled.")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
             Spacer()
 
             Button(isFastModeEnabled ? "Disable Fast Mode" : "Enable Fast Mode") {
-                isFastModeEnabled.toggle()
+                fastModeOverride = !isFastModeEnabled
             }
             .buttonStyle(.borderedProminent)
+
+            if fastModeOverride != nil {
+                Button("Auto") {
+                    fastModeOverride = nil
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -238,7 +317,11 @@ struct MarkdownDocumentView: View {
         MarkdownRenderOptions(
             syntaxHighlightingEnabled: !isFastModeEnabled,
             tocExtractionEnabled: !isFastModeEnabled,
-            fastMode: isFastModeEnabled
+            fastMode: isFastModeEnabled,
+            theme: selectedTheme,
+            appearance: selectedAppearance,
+            bodyFontSize: bodyFontSize,
+            codeFontSize: codeFontSize
         )
     }
 
@@ -294,7 +377,8 @@ struct MarkdownDocumentView: View {
     private func refreshLargeFileState() {
         guard let fileURL else {
             isLargeFile = false
-            isFastModeEnabled = false
+            tier = .small
+            fastModeOverride = nil
             return
         }
 
@@ -302,8 +386,15 @@ struct MarkdownDocumentView: View {
         let fileSizeBytes = Int64(values?.fileSize ?? 0)
         isLargeFile = fileSizeBytes >= Self.largeFileThresholdBytes
 
-        if !isLargeFile, isFastModeEnabled {
-            isFastModeEnabled = false
+        switch fileSizeBytes {
+        case ..<50_000:
+            tier = .small
+        case 50_000..<500_000:
+            tier = .medium
+        case 500_000..<5_000_000:
+            tier = .large
+        default:
+            tier = .huge
         }
     }
 
@@ -337,9 +428,20 @@ struct MarkdownDocumentView: View {
         }
         refreshLargeFileState()
     }
+
+    private func openCurrentFile(with appURL: URL) {
+        guard let fileURL else { return }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = true
+        NSWorkspace.shared.open([fileURL], withApplicationAt: appURL, configuration: configuration)
+    }
 }
 
 private struct RenderTaskKey: Hashable {
     let text: String
     let fastMode: Bool
+    let theme: String
+    let appearance: String
+    let bodyFontSize: Int
+    let codeFontSize: Int
 }

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-03-01
+
+### Added
+
+- Toolbar **Style** controls with selectable themes (System, GitHub, Solarized, Dracula).
+- Appearance override options (System/Light/Dark) for deterministic preview rendering.
+- User-configurable typography controls for body and code font sizes.
+- Toolbar **Open With** menu to open the current markdown file in another installed app.
+- Automatic file-size render tiers (`small`, `medium`, `large`, `huge`) to drive fast-mode defaults.
+- Execution-plan checklist section in `ROADMAP.md` (and mirrored `roadmap.md`) for chained delivery.
+
+### Changed
+
+- `MarkdownRenderOptions` now includes theme, appearance, and typography preferences.
+- HTML renderer now applies theme palettes and font-size CSS variables from render options.
+- Large-file UX now supports manual fast-mode override with a one-click return to Auto mode.
+
 ## [0.1.6] - 2026-02-27
 
 ### Added

@@ -32,19 +32,44 @@ public struct MarkdownRenderMetadata: Equatable {
     }
 }
 
+public enum MarkdownTheme: String, Equatable, Sendable {
+    case system
+    case github
+    case solarized
+    case dracula
+}
+
+public enum MarkdownAppearance: String, Equatable, Sendable {
+    case system
+    case light
+    case dark
+}
+
 public struct MarkdownRenderOptions: Equatable, Sendable {
     public var syntaxHighlightingEnabled: Bool
     public var tocExtractionEnabled: Bool
     public var fastMode: Bool
+    public var theme: MarkdownTheme
+    public var appearance: MarkdownAppearance
+    public var bodyFontSize: Int
+    public var codeFontSize: Int
 
     public init(
         syntaxHighlightingEnabled: Bool = true,
         tocExtractionEnabled: Bool = true,
-        fastMode: Bool = false
+        fastMode: Bool = false,
+        theme: MarkdownTheme = .system,
+        appearance: MarkdownAppearance = .system,
+        bodyFontSize: Int = 16,
+        codeFontSize: Int = 14
     ) {
         self.syntaxHighlightingEnabled = syntaxHighlightingEnabled
         self.tocExtractionEnabled = tocExtractionEnabled
         self.fastMode = fastMode
+        self.theme = theme
+        self.appearance = appearance
+        self.bodyFontSize = bodyFontSize
+        self.codeFontSize = codeFontSize
     }
 }
 
@@ -106,7 +131,7 @@ public struct MarkdownRenderer {
             fallbackTitle: title,
             frontMatter: preprocessed.frontMatter
         )
-        let finalHTML = wrapInDocument(bodyHTML: autolinkedHTML, metadata: metadata)
+        let finalHTML = wrapInDocument(bodyHTML: autolinkedHTML, metadata: metadata, options: normalizedOptions)
         return RenderedMarkdownDocument(
             html: finalHTML,
             metadata: metadata,
@@ -154,7 +179,11 @@ public struct MarkdownRenderer {
         return MarkdownRenderOptions(
             syntaxHighlightingEnabled: false,
             tocExtractionEnabled: false,
-            fastMode: true
+            fastMode: true,
+            theme: options.theme,
+            appearance: options.appearance,
+            bodyFontSize: options.bodyFontSize,
+            codeFontSize: options.codeFontSize
         )
     }
 
@@ -740,10 +769,23 @@ public struct MarkdownRenderer {
         return slug.isEmpty ? "section" : slug
     }
 
-    private func wrapInDocument(bodyHTML: String, metadata: MarkdownRenderMetadata) -> String {
+    private func wrapInDocument(bodyHTML: String, metadata: MarkdownRenderMetadata, options: MarkdownRenderOptions) -> String {
         let escapedTitle = escapeHTML(metadata.title)
         let escapedDescription = escapeHTML(metadata.description)
         let escapedKeywords = escapeHTML(metadata.keywords.joined(separator: ", "))
+        let palette = paletteCSS(theme: options.theme)
+
+        let rootScheme: String = {
+            switch options.appearance {
+            case .light: return "light"
+            case .dark: return "dark"
+            case .system: return "light dark"
+            }
+        }()
+
+        let darkClass = options.appearance == .dark ? "theme-dark" : ""
+        let lightClass = options.appearance == .light ? "theme-light" : ""
+        let bodyClass = [darkClass, lightClass].filter { !$0.isEmpty }.joined(separator: " ")
 
         return """
         <!doctype html>
@@ -756,33 +798,21 @@ public struct MarkdownRenderer {
             <meta name="keywords" content="\(escapedKeywords)">
             <style>
                 :root {
-                    color-scheme: light dark;
-                    --bg: #f8f8f8;
-                    --text: #202124;
-                    --muted: #5f6368;
-                    --code-bg: #eceff1;
-                    --border: #dadce0;
-                    --link: #0b57d0;
-                    --tok-comment: #6a737d;
-                    --tok-string: #0b6e4f;
-                    --tok-number: #8a3ffc;
-                    --tok-keyword: #b42318;
-                    --tok-literal: #9f1853;
+                    color-scheme: \(rootScheme);
+                    --body-font-size: \(max(12, options.bodyFontSize))px;
+                    --code-font-size: \(max(11, options.codeFontSize))px;
+                    \(palette.light)
                 }
                 @media (prefers-color-scheme: dark) {
                     :root {
-                        --bg: #111315;
-                        --text: #e8eaed;
-                        --muted: #9aa0a6;
-                        --code-bg: #1f2327;
-                        --border: #303134;
-                        --link: #8ab4f8;
-                        --tok-comment: #8b949e;
-                        --tok-string: #7ee787;
-                        --tok-number: #d2a8ff;
-                        --tok-keyword: #ff7b72;
-                        --tok-literal: #f2cc60;
+                        \(palette.dark)
                     }
+                }
+                body.theme-dark {
+                    \(palette.dark)
+                }
+                body.theme-light {
+                    \(palette.light)
                 }
                 html, body {
                     margin: 0;
@@ -791,6 +821,7 @@ public struct MarkdownRenderer {
                     color: var(--text);
                     font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
                     line-height: 1.55;
+                    font-size: var(--body-font-size);
                 }
                 body {
                     max-width: 980px;
@@ -819,6 +850,7 @@ public struct MarkdownRenderer {
                 }
                 code {
                     font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+                    font-size: var(--code-font-size);
                     background: var(--code-bg);
                     border-radius: 6px;
                     padding: 0.15em 0.35em;
@@ -862,12 +894,37 @@ public struct MarkdownRenderer {
                 }
             </style>
         </head>
-        <body>
+        <body class="\(bodyClass)">
         \(bodyHTML)
         <div style="position:absolute;left:-99999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">\(escapeHTML(metadata.searchableText))</div>
         </body>
         </html>
         """
+    }
+
+    private func paletteCSS(theme: MarkdownTheme) -> (light: String, dark: String) {
+        switch theme {
+        case .system:
+            return (
+                light: "--bg:#f8f8f8;--text:#202124;--muted:#5f6368;--code-bg:#eceff1;--border:#dadce0;--link:#0b57d0;--tok-comment:#6a737d;--tok-string:#0b6e4f;--tok-number:#8a3ffc;--tok-keyword:#b42318;--tok-literal:#9f1853;",
+                dark: "--bg:#111315;--text:#e8eaed;--muted:#9aa0a6;--code-bg:#1f2327;--border:#303134;--link:#8ab4f8;--tok-comment:#8b949e;--tok-string:#7ee787;--tok-number:#d2a8ff;--tok-keyword:#ff7b72;--tok-literal:#f2cc60;"
+            )
+        case .github:
+            return (
+                light: "--bg:#ffffff;--text:#1f2328;--muted:#57606a;--code-bg:#f6f8fa;--border:#d0d7de;--link:#0969da;--tok-comment:#6e7781;--tok-string:#0a3069;--tok-number:#0550ae;--tok-keyword:#cf222e;--tok-literal:#8250df;",
+                dark: "--bg:#0d1117;--text:#e6edf3;--muted:#8b949e;--code-bg:#161b22;--border:#30363d;--link:#58a6ff;--tok-comment:#8b949e;--tok-string:#a5d6ff;--tok-number:#79c0ff;--tok-keyword:#ff7b72;--tok-literal:#d2a8ff;"
+            )
+        case .solarized:
+            return (
+                light: "--bg:#fdf6e3;--text:#586e75;--muted:#657b83;--code-bg:#eee8d5;--border:#93a1a1;--link:#268bd2;--tok-comment:#93a1a1;--tok-string:#2aa198;--tok-number:#d33682;--tok-keyword:#859900;--tok-literal:#b58900;",
+                dark: "--bg:#002b36;--text:#93a1a1;--muted:#839496;--code-bg:#073642;--border:#586e75;--link:#268bd2;--tok-comment:#586e75;--tok-string:#2aa198;--tok-number:#d33682;--tok-keyword:#859900;--tok-literal:#b58900;"
+            )
+        case .dracula:
+            return (
+                light: "--bg:#f8f8f2;--text:#282a36;--muted:#6272a4;--code-bg:#ececf5;--border:#d4d7e1;--link:#6272a4;--tok-comment:#6c7693;--tok-string:#0f7b42;--tok-number:#8c43ff;--tok-keyword:#9d2abf;--tok-literal:#b46a00;",
+                dark: "--bg:#282a36;--text:#f8f8f2;--muted:#bd93f9;--code-bg:#343746;--border:#44475a;--link:#8be9fd;--tok-comment:#6272a4;--tok-string:#50fa7b;--tok-number:#bd93f9;--tok-keyword:#ff79c6;--tok-literal:#ffb86c;"
+            )
+        }
     }
 
     private func escapeHTML(_ value: String) -> String {

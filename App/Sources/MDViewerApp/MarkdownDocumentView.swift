@@ -151,7 +151,7 @@ struct MarkdownDocumentView: View {
     }
 
     private var isFastModeEnabled: Bool {
-        fastModeOverride ?? tier == .large || tier == .huge
+        fastModeOverride ?? (tier == .large || tier == .huge)
     }
 
     private var openWithApps: [URL] {

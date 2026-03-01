@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-03-01
+
+### Fixed
+
+- Build fix in app target: corrected fast-mode expression precedence in `MarkdownDocumentView` (`fastModeOverride ?? (tier == .large || tier == .huge)`).
+- Restores GitHub release build step that was failing with Swift type-check errors.
+
 ## [0.1.8] - 2026-03-01
 
 ### Fixed

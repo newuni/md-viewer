@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-03-01
+
 ### Added
 
 - Command Palette (`Cmd+K`) with actions for outline toggle, theme switch, fast mode toggle, Open With, HTML export, reading mode, and paste-preview.

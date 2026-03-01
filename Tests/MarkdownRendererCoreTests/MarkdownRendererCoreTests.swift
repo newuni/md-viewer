@@ -260,4 +260,46 @@ struct MarkdownRendererCoreTests {
         #expect(!html.contains("href=\"<a href=\""))
         #expect(html.contains("<pre><code>https://example.com/fenced"))
     }
+
+#if canImport(AppKit)
+    @Test
+    func nativeRenderProducesAttributedStringAndHeadingOffsets() throws {
+        let markdown = """
+        # Intro
+
+        Paragraph body.
+
+        ## Details
+
+        More text.
+        """
+
+        let rendered = try renderer.renderNativeDocument(markdown: markdown)
+
+        #expect(rendered.attributedString.length > 0)
+        #expect(rendered.attributedString.string.contains("Paragraph body."))
+        #expect(rendered.headings.count == 2)
+        #expect(rendered.headings[0].anchor == "intro")
+        #expect((rendered.headings[0].characterOffset ?? -1) >= 0)
+        #expect((rendered.headings[1].characterOffset ?? -1) >= 0)
+    }
+
+    @Test
+    func nativeFastModeDisablesTOCExtraction() throws {
+        let markdown = """
+        ## Section one
+        """
+
+        let rendered = try renderer.renderNativeDocument(
+            markdown: markdown,
+            options: MarkdownRenderOptions(
+                syntaxHighlightingEnabled: true,
+                tocExtractionEnabled: true,
+                fastMode: true
+            )
+        )
+
+        #expect(rendered.headings.isEmpty)
+    }
+#endif
 }

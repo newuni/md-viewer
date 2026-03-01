@@ -16,8 +16,9 @@ struct MarkdownDocumentView: View {
     let document: MarkdownDocument
     let fileURL: URL?
 
-    @State private var renderedDocument: RenderedMarkdownDocument?
-    @State private var renderedErrorHTML = ""
+    @State private var renderedNativeDocument: NativeRenderedMarkdownDocument?
+    @State private var renderedFallbackDocument: RenderedMarkdownDocument?
+    @State private var renderedErrorMessage: String?
     @State private var liveText: String?
     @State private var watcher: MarkdownFileWatcher?
 
@@ -29,8 +30,10 @@ struct MarkdownDocumentView: View {
     @State private var lastSearchSignature: String?
     @FocusState private var isSearchFieldFocused: Bool
 
-    @State private var searchRequest: HTMLWebView.SearchRequest?
-    @State private var scrollRequest: HTMLWebView.ScrollRequest?
+    @State private var nativeSearchRequest: NativeMarkdownTextView.SearchRequest?
+    @State private var nativeScrollRequest: NativeMarkdownTextView.ScrollRequest?
+    @State private var fallbackSearchRequest: HTMLWebView.SearchRequest?
+    @State private var fallbackScrollRequest: HTMLWebView.ScrollRequest?
 
     @State private var isLargeFile = false
     @State private var tier: RenderTier = .small
@@ -163,20 +166,35 @@ struct MarkdownDocumentView: View {
 
     private var previewContent: some View {
         Group {
-            if renderedDocument == nil, renderedErrorHTML.isEmpty {
+            if renderedNativeDocument == nil, renderedFallbackDocument == nil, renderedErrorMessage == nil {
                 ContentUnavailableView(
                     "Rendering Markdown",
                     systemImage: "doc.text.magnifyingglass",
                     description: Text("Loading preview...")
                 )
-            } else {
-                HTMLWebView(
-                    html: renderedDocument?.html ?? renderedErrorHTML,
-                    searchRequest: searchRequest,
-                    scrollRequest: scrollRequest
+            } else if let renderedNativeDocument {
+                NativeMarkdownTextView(
+                    attributedString: renderedNativeDocument.attributedString,
+                    headingOffsets: headingOffsets,
+                    searchRequest: nativeSearchRequest,
+                    scrollRequest: nativeScrollRequest
                 ) { found in
                     searchStatusMessage = found ? nil : "No matches"
                 }
+            } else if let renderedFallbackDocument {
+                HTMLWebView(
+                    html: renderedFallbackDocument.html,
+                    searchRequest: fallbackSearchRequest,
+                    scrollRequest: fallbackScrollRequest
+                ) { found in
+                    searchStatusMessage = found ? nil : "No matches"
+                }
+            } else {
+                ContentUnavailableView(
+                    "Preview Error",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(renderedErrorMessage ?? "Rendering failed.")
+                )
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -285,7 +303,8 @@ struct MarkdownDocumentView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(Array(tocItems.enumerated()), id: \.offset) { _, heading in
                             Button {
-                                scrollRequest = HTMLWebView.ScrollRequest(anchor: heading.anchor)
+                                nativeScrollRequest = NativeMarkdownTextView.ScrollRequest(anchor: heading.anchor)
+                                fallbackScrollRequest = HTMLWebView.ScrollRequest(anchor: heading.anchor)
                             } label: {
                                 Text(heading.text)
                                     .font(.callout)
@@ -310,7 +329,20 @@ struct MarkdownDocumentView: View {
     }
 
     private var tocItems: [HeadingItem] {
-        (renderedDocument?.headings ?? []).filter { (1...4).contains($0.level) }
+        let source = renderedNativeDocument?.headings ?? renderedFallbackDocument?.headings ?? []
+        return source.filter { (1...4).contains($0.level) }
+    }
+
+    private var headingOffsets: [String: Int] {
+        Dictionary(
+            uniqueKeysWithValues: (renderedNativeDocument?.headings ?? [])
+                .compactMap { heading in
+                    guard let offset = heading.characterOffset else {
+                        return nil
+                    }
+                    return (heading.anchor, offset)
+                }
+        )
     }
 
     private var renderOptions: MarkdownRenderOptions {
@@ -348,7 +380,13 @@ struct MarkdownDocumentView: View {
 
         let shouldResetSelection = lastSearchSignature != searchSignature
         lastSearchSignature = searchSignature
-        searchRequest = HTMLWebView.SearchRequest(
+        nativeSearchRequest = NativeMarkdownTextView.SearchRequest(
+            query: query,
+            caseSensitive: isCaseSensitiveSearch,
+            backwards: backwards,
+            resetSelection: shouldResetSelection
+        )
+        fallbackSearchRequest = HTMLWebView.SearchRequest(
             query: query,
             caseSensitive: isCaseSensitiveSearch,
             backwards: backwards,
@@ -358,19 +396,29 @@ struct MarkdownDocumentView: View {
 
     private func renderCurrentDocument() {
         do {
-            let rendered = try renderer.renderDocument(
+            let rendered = try renderer.renderNativeDocument(
                 markdown: effectiveMarkdownText,
                 title: fileURL?.lastPathComponent ?? "Markdown Preview",
                 options: renderOptions
             )
-            renderedDocument = rendered
-            renderedErrorHTML = ""
+            renderedNativeDocument = rendered
+            renderedFallbackDocument = nil
+            renderedErrorMessage = nil
         } catch {
-            renderedDocument = nil
-            renderedErrorHTML = """
-            <!doctype html>
-            <html><body><h2>Preview error</h2><p>\(error.localizedDescription)</p></body></html>
-            """
+            do {
+                let fallback = try renderer.renderDocument(
+                    markdown: effectiveMarkdownText,
+                    title: fileURL?.lastPathComponent ?? "Markdown Preview",
+                    options: renderOptions
+                )
+                renderedNativeDocument = nil
+                renderedFallbackDocument = fallback
+                renderedErrorMessage = nil
+            } catch {
+                renderedNativeDocument = nil
+                renderedFallbackDocument = nil
+                renderedErrorMessage = error.localizedDescription
+            }
         }
     }
 

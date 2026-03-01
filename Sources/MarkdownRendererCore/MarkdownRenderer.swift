@@ -1,5 +1,8 @@
 import Foundation
 import Markdown
+#if canImport(AppKit)
+import AppKit
+#endif
 
 public enum MarkdownRenderError: LocalizedError {
     case invalidFileURL(URL)
@@ -77,11 +80,13 @@ public struct HeadingItem: Equatable, Sendable {
     public let level: Int
     public let text: String
     public let anchor: String
+    public let characterOffset: Int?
 
-    public init(level: Int, text: String, anchor: String) {
+    public init(level: Int, text: String, anchor: String, characterOffset: Int? = nil) {
         self.level = level
         self.text = text
         self.anchor = anchor
+        self.characterOffset = characterOffset
     }
 }
 
@@ -96,6 +101,24 @@ public struct RenderedMarkdownDocument: Equatable {
         self.headings = headings
     }
 }
+
+#if canImport(AppKit)
+public struct NativeRenderedMarkdownDocument {
+    public let attributedString: NSAttributedString
+    public let metadata: MarkdownRenderMetadata
+    public let headings: [HeadingItem]
+
+    public init(
+        attributedString: NSAttributedString,
+        metadata: MarkdownRenderMetadata,
+        headings: [HeadingItem] = []
+    ) {
+        self.attributedString = attributedString
+        self.metadata = metadata
+        self.headings = headings
+    }
+}
+#endif
 
 public struct MarkdownRenderer {
     public init() {}
@@ -145,6 +168,51 @@ public struct MarkdownRenderer {
     ) throws -> String {
         try renderDocument(fileURL: fileURL, options: options).html
     }
+
+#if canImport(AppKit)
+    public func renderNativeDocument(
+        markdown: String,
+        title: String = "Markdown Preview",
+        options: MarkdownRenderOptions = MarkdownRenderOptions()
+    ) throws -> NativeRenderedMarkdownDocument {
+        let rendered = try renderDocument(markdown: markdown, title: title, options: options)
+        let attributed = try makeAttributedString(fromHTML: rendered.html)
+        let headingsWithOffsets = assignCharacterOffsets(
+            for: rendered.headings,
+            in: attributed.string
+        )
+        return NativeRenderedMarkdownDocument(
+            attributedString: attributed,
+            metadata: rendered.metadata,
+            headings: headingsWithOffsets
+        )
+    }
+
+    public func renderNativeDocument(
+        fileURL: URL,
+        options: MarkdownRenderOptions = MarkdownRenderOptions()
+    ) throws -> NativeRenderedMarkdownDocument {
+        guard fileURL.isFileURL else {
+            throw MarkdownRenderError.invalidFileURL(fileURL)
+        }
+
+        do {
+            let data = try Data(contentsOf: fileURL)
+            guard let markdown = String(data: data, encoding: .utf8) else {
+                throw MarkdownRenderError.unsupportedEncoding(fileURL)
+            }
+            return try renderNativeDocument(
+                markdown: markdown,
+                title: fileURL.lastPathComponent,
+                options: options
+            )
+        } catch let error as MarkdownRenderError {
+            throw error
+        } catch {
+            throw MarkdownRenderError.unreadableFile(fileURL, error)
+        }
+    }
+#endif
 
     public func renderDocument(
         fileURL: URL,
@@ -936,6 +1004,60 @@ public struct MarkdownRenderer {
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&#39;")
     }
+
+#if canImport(AppKit)
+    private func makeAttributedString(fromHTML html: String) throws -> NSAttributedString {
+        let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
+            .documentType: NSAttributedString.DocumentType.html,
+            .characterEncoding: String.Encoding.utf8.rawValue
+        ]
+        return try NSAttributedString(
+            data: Data(html.utf8),
+            options: options,
+            documentAttributes: nil
+        )
+    }
+
+    private func assignCharacterOffsets(for headings: [HeadingItem], in plainText: String) -> [HeadingItem] {
+        guard !headings.isEmpty, !plainText.isEmpty else {
+            return headings
+        }
+
+        let nsText = plainText as NSString
+        var cursor = 0
+        var output: [HeadingItem] = []
+        output.reserveCapacity(headings.count)
+
+        for heading in headings {
+            let searchRange = NSRange(location: cursor, length: max(0, nsText.length - cursor))
+            var found = nsText.range(
+                of: heading.text,
+                options: [],
+                range: searchRange
+            )
+
+            if found.location == NSNotFound {
+                found = nsText.range(of: heading.text)
+            }
+
+            let offset = found.location == NSNotFound ? nil : found.location
+            if let offset {
+                cursor = max(cursor, offset + max(1, found.length))
+            }
+
+            output.append(
+                HeadingItem(
+                    level: heading.level,
+                    text: heading.text,
+                    anchor: heading.anchor,
+                    characterOffset: offset
+                )
+            )
+        }
+
+        return output
+    }
+#endif
 }
 
 private extension String {

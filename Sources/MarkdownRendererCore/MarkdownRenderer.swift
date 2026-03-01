@@ -1023,11 +1023,7 @@ public struct MarkdownRenderer {
             return try make()
         }
 
-        var result: Result<NSAttributedString, Error>!
-        DispatchQueue.main.sync {
-            result = Result(catching: make)
-        }
-        return try result.get()
+        return try DispatchQueue.main.sync(execute: make)
     }
 
     private func assignCharacterOffsets(for headings: [HeadingItem], in plainText: String) -> [HeadingItem] {

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-03-01
+
+### Fixed
+
+- Reworked main-thread attributed conversion to use `DispatchQueue.main.sync(execute:)`, eliminating a Swift strict-concurrency capture race reported by CI while keeping native rendering test stability.
+
 ## [0.1.11] - 2026-03-01
 
 ### Fixed

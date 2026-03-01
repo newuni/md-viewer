@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-03-01
+
+### Added
+
+- Native render API in `MarkdownRendererCore`: `renderNativeDocument(...)` returning attributed output, metadata, and TOC headings with character offsets.
+- New `NativeMarkdownTextView` (`NSTextView`-based) with in-document search and heading-offset scrolling support.
+- Core tests covering native rendering output and fast-mode TOC behavior.
+
+### Changed
+
+- App preview now uses native text rendering as the default path.
+- Quick Look now prefers native RTF previews generated from attributed markdown output.
+- Existing HTML/WebView rendering remains available as a compatibility fallback when native conversion fails.
+
 ## [0.1.9] - 2026-03-01
 
 ### Fixed

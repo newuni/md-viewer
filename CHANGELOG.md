@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-03-01
+
+### Changed
+
+- Updated `README.md` to reflect native renderer as default path (app + Quick Look), with compatibility fallback notes.
+- Expanded feature documentation for themes/appearance/typography and automatic render tiers.
+- Updated `ROADMAP.md` and `roadmap.md` to include completed native-engine migration milestones.
+
 ## [0.1.13] - 2026-03-01
 
 ### Fixed

@@ -85,14 +85,6 @@ If needed:
 xattr -dr com.apple.quarantine /Applications/MDViewer.app
 ```
 
-## Release workflow
-
-On every `v*` tag, GitHub Actions builds the app and publishes release assets.
-
-Optional metadata sync:
-- If `REPO_METADATA_TOKEN` is configured, the workflow also updates the repository About section (description/homepage/topics).
-- If the secret is missing, metadata sync is skipped and the release still succeeds.
-
 ## Quick Look behavior
 
 Pressing `space` in Finder should render Markdown directly with the extension. The `Open with MDViewer` button is system UI and cannot be removed, but you should not need to click it for preview.

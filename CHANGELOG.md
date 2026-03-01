@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-03-01
+
+### Fixed
+
+- Fixed Swift 6/Xcode 16.4 ambiguity in `NativeMarkdownTextView` by explicitly using `CGFloat.greatestFiniteMagnitude` for NSTextView sizing.
+
 ## [0.1.12] - 2026-03-01
 
 ### Fixed

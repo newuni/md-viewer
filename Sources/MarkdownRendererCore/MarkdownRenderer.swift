@@ -1011,11 +1011,23 @@ public struct MarkdownRenderer {
             .documentType: NSAttributedString.DocumentType.html,
             .characterEncoding: String.Encoding.utf8.rawValue
         ]
-        return try NSAttributedString(
-            data: Data(html.utf8),
-            options: options,
-            documentAttributes: nil
-        )
+        let make: () throws -> NSAttributedString = {
+            try NSAttributedString(
+                data: Data(html.utf8),
+                options: options,
+                documentAttributes: nil
+            )
+        }
+
+        if Thread.isMainThread {
+            return try make()
+        }
+
+        var result: Result<NSAttributedString, Error>!
+        DispatchQueue.main.sync {
+            result = Result(catching: make)
+        }
+        return try result.get()
     }
 
     private func assignCharacterOffsets(for headings: [HeadingItem], in plainText: String) -> [HeadingItem] {

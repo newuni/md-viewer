@@ -1,6 +1,7 @@
 import AppKit
 import SwiftUI
 
+@MainActor
 struct NativeMarkdownTextView: NSViewRepresentable {
     struct SearchRequest: Equatable {
         let id: UUID
@@ -91,6 +92,7 @@ struct NativeMarkdownTextView: NSViewRepresentable {
         )
     }
 
+    @MainActor
     final class Coordinator: NSObject {
         weak var textView: NSTextView?
         var onSearchResult: (Bool) -> Void

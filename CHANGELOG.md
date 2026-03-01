@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-03-01
+
+### Fixed
+
+- Stabilized native rendering in CI/test environments by forcing AppKit HTML-to-attributed conversion onto the main thread, preventing `nsattributedstringagent` connection errors during `swift test`.
+- Marked native preview bridge (`NativeMarkdownTextView`) as main-actor isolated to satisfy Swift 6 actor isolation checks in Release builds.
+
 ## [0.1.10] - 2026-03-01
 
 ### Added

@@ -316,6 +316,82 @@ struct MarkdownRendererCoreTests {
         #expect(html.contains("<pre><code>https://example.com/fenced"))
     }
 
+    @Test
+    func sanitizesJavaScriptLinksAndInlineEventHandlers() throws {
+        let markdown = #"""
+        <a href="javascript:alert('x')" onclick="evil()">click</a>
+        <img src='javascript:alert(1)' onerror='evil()'>
+        """#
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("href=\"#\""))
+        #expect(html.contains("src='#'"))
+        #expect(!html.localizedCaseInsensitiveContains("onclick="))
+        #expect(!html.localizedCaseInsensitiveContains("onerror="))
+    }
+
+    @Test
+    func autolinkExcludesTrailingParentheses() throws {
+        let markdown = "See (https://example.com/path)."
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("(<a href=\"https://example.com/path\">https://example.com/path</a>)."))
+    }
+
+    @Test
+    func preservesExistingHeadingIDs() throws {
+        let markdown = #"""
+        <h2 id="custom-anchor">Section</h2>
+        """#
+
+        let rendered = try renderer.renderDocument(markdown: markdown)
+
+        #expect(rendered.html.contains("<h2 id=\"custom-anchor\">Section</h2>"))
+        #expect(rendered.headings.contains(where: { $0.anchor == "custom-anchor" }))
+    }
+
+    @Test
+    func frontMatterSupportsFoldedDescriptionLines() throws {
+        let markdown = """
+        ---
+        title: Release Notes
+        description: First line
+          second line
+        keywords: swift, markdown
+        ---
+
+        Body section.
+        """
+
+        let rendered = try renderer.renderDocument(markdown: markdown)
+
+        #expect(rendered.metadata.title == "Release Notes")
+        #expect(rendered.metadata.description == "First line second line")
+        #expect(rendered.metadata.keywords.contains("swift"))
+        #expect(rendered.metadata.keywords.contains("markdown"))
+    }
+
+    @Test
+    func fileURLRendererWrapsUnreadablePathErrors() throws {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("md-viewer-missing-\(UUID().uuidString).md")
+
+        do {
+            _ = try renderer.renderDocument(fileURL: missing)
+            #expect(Bool(false), "Expected unreadableFile error")
+        } catch let error as MarkdownRenderError {
+            switch error {
+            case let .unreadableFile(url, underlying):
+                #expect(url == missing)
+                #expect(!underlying.localizedDescription.isEmpty)
+            default:
+                #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
+            }
+        }
+    }
+
 #if canImport(AppKit)
     @Test
     func nativeRenderProducesAttributedStringAndHeadingOffsets() throws {

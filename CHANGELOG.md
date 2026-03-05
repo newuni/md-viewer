@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.22] - 2026-03-05
+
+### Added
+
+- Expanded renderer regression coverage for:
+  - JavaScript-link + inline event-handler sanitization
+  - Autolink punctuation edge case with wrapping parentheses
+  - Existing heading-id preservation in generated TOC metadata
+  - Folded front-matter description parsing and keyword extraction
+  - Unreadable file-path error wrapping for file URL rendering
+
 ## [0.1.21] - 2026-03-05
 
 ### Changed

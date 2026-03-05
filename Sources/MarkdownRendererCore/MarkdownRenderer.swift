@@ -121,6 +121,8 @@ public struct NativeRenderedMarkdownDocument {
 #endif
 
 public struct MarkdownRenderer {
+    private static let searchableShadowElementID = "mdv-search-shadow"
+
     public init() {}
 
     public func render(
@@ -176,7 +178,8 @@ public struct MarkdownRenderer {
         options: MarkdownRenderOptions = MarkdownRenderOptions()
     ) throws -> NativeRenderedMarkdownDocument {
         let rendered = try renderDocument(markdown: markdown, title: title, options: options)
-        let attributed = try makeAttributedString(fromHTML: rendered.html)
+        let nativeHTML = stripSearchableShadow(from: rendered.html)
+        let attributed = try makeAttributedString(fromHTML: nativeHTML)
         let headingsWithOffsets = assignCharacterOffsets(
             for: rendered.headings,
             in: attributed.string
@@ -965,7 +968,7 @@ public struct MarkdownRenderer {
         </head>
         <body\(bodyClassAttribute)>
         \(bodyHTML)
-        <div style="position:absolute;left:-99999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">\(escapeHTML(metadata.searchableText))</div>
+        <div id="\(Self.searchableShadowElementID)" style="position:absolute;left:-99999px;top:auto;width:1px;height:1px;overflow:hidden;" aria-hidden="true">\(escapeHTML(metadata.searchableText))</div>
         </body>
         </html>
         """
@@ -1006,6 +1009,14 @@ public struct MarkdownRenderer {
     }
 
 #if canImport(AppKit)
+    private func stripSearchableShadow(from html: String) -> String {
+        html.replacing(
+            pattern: #"<div\s+id="mdv-search-shadow"[^>]*>[\s\S]*?</div>"#,
+            with: "",
+            options: [.caseInsensitive]
+        )
+    }
+
     private func makeAttributedString(fromHTML html: String) throws -> NSAttributedString {
         let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
             .documentType: NSAttributedString.DocumentType.html,

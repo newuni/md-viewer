@@ -301,5 +301,20 @@ struct MarkdownRendererCoreTests {
 
         #expect(rendered.headings.isEmpty)
     }
+
+    @Test
+    func nativeRenderDoesNotExposeSearchableShadowText() throws {
+        let token = "UNIQUE_NATIVE_SHADOW_TOKEN"
+        let markdown = """
+        # Heading
+
+        Body \(token)
+        """
+
+        let rendered = try renderer.renderNativeDocument(markdown: markdown)
+        let occurrences = rendered.attributedString.string.components(separatedBy: token).count - 1
+
+        #expect(occurrences == 1)
+    }
 #endif
 }

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.19] - 2026-03-05
+
+### Fixed
+
+- Native renderer no longer displays the hidden searchable shadow text block that is injected for HTML indexing, preventing duplicated/plain-text dumps at the end of previews.
+- Added regression coverage to ensure native attributed output does not expose duplicated searchable-shadow content.
+
 ## [0.1.17] - 2026-03-01
 
 ### Added

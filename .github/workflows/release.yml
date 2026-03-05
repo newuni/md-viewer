@@ -11,9 +11,14 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.event_name }}-${{ inputs.tag || github.ref_name || github.sha }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: macos-latest
+    timeout-minutes: 60
     permissions:
       contents: write
 
@@ -25,12 +30,25 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
             TAG="${{ inputs.tag }}"
           fi
+
+          TAG="$(echo "$TAG" | xargs)"
+          if [[ -z "$TAG" ]]; then
+            echo "error: empty tag after resolution"
+            exit 1
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]]; then
+            echo "error: invalid tag format '$TAG' (expected vMAJOR.MINOR.PATCH or prerelease like v1.2.3-rc.1)"
+            exit 1
+          fi
+
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Resolved release tag: $TAG"
 
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: ${{ steps.release_tag.outputs.tag }}
+          fetch-depth: 0
 
       - name: Swift package tests
         run: swift test
@@ -76,6 +94,7 @@ jobs:
             ```
 
       - name: Sync repository About with this release
+        continue-on-error: true
         env:
           REPO_METADATA_TOKEN: ${{ secrets.REPO_METADATA_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}

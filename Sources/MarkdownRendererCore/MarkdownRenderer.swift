@@ -195,25 +195,12 @@ public struct MarkdownRenderer {
         fileURL: URL,
         options: MarkdownRenderOptions = MarkdownRenderOptions()
     ) throws -> NativeRenderedMarkdownDocument {
-        guard fileURL.isFileURL else {
-            throw MarkdownRenderError.invalidFileURL(fileURL)
-        }
-
-        do {
-            let data = try Data(contentsOf: fileURL)
-            guard let markdown = String(data: data, encoding: .utf8) else {
-                throw MarkdownRenderError.unsupportedEncoding(fileURL)
-            }
-            return try renderNativeDocument(
-                markdown: markdown,
-                title: fileURL.lastPathComponent,
-                options: options
-            )
-        } catch let error as MarkdownRenderError {
-            throw error
-        } catch {
-            throw MarkdownRenderError.unreadableFile(fileURL, error)
-        }
+        let markdown = try loadMarkdown(from: fileURL)
+        return try renderNativeDocument(
+            markdown: markdown,
+            title: fileURL.lastPathComponent,
+            options: options
+        )
     }
 #endif
 
@@ -221,6 +208,15 @@ public struct MarkdownRenderer {
         fileURL: URL,
         options: MarkdownRenderOptions = MarkdownRenderOptions()
     ) throws -> RenderedMarkdownDocument {
+        let markdown = try loadMarkdown(from: fileURL)
+        return try renderDocument(
+            markdown: markdown,
+            title: fileURL.lastPathComponent,
+            options: options
+        )
+    }
+
+    private func loadMarkdown(from fileURL: URL) throws -> String {
         guard fileURL.isFileURL else {
             throw MarkdownRenderError.invalidFileURL(fileURL)
         }
@@ -230,11 +226,7 @@ public struct MarkdownRenderer {
             guard let markdown = String(data: data, encoding: .utf8) else {
                 throw MarkdownRenderError.unsupportedEncoding(fileURL)
             }
-            return try renderDocument(
-                markdown: markdown,
-                title: fileURL.lastPathComponent,
-                options: options
-            )
+            return markdown
         } catch let error as MarkdownRenderError {
             throw error
         } catch {

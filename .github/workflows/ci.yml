@@ -5,9 +5,14 @@ on:
     branches: ["**"]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test-and-build:
     runs-on: macos-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout

@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-03-05
+
+### Changed
+
+- Hardened CI/release workflows with concurrency guards and explicit job timeouts to reduce stuck/duplicated runs.
+- Release workflow now validates manual tag input format before checkout to fail fast with clear errors.
+- Release metadata sync is now non-blocking (`continue-on-error`) so packaging/publishing remains reliable even if repo-about sync has transient issues.
+
+### Refactored
+
+- Removed duplicated file-loading logic in `MarkdownRenderer` by introducing a shared `loadMarkdown(from:)` helper used by both HTML and native render paths.
+- Added regression tests for file URL rendering/error paths (non-file URL rejection and non-UTF8 content handling).
+
 ## [0.1.20] - 2026-03-05
 
 ### Changed

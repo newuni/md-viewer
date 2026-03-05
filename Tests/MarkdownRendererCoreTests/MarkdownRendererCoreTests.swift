@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MarkdownRendererCore
 
@@ -67,6 +68,60 @@ struct MarkdownRendererCoreTests {
 
         #expect(html.contains("<!doctype html>"))
         #expect(html.contains("<body>"))
+    }
+
+    @Test
+    func rendersFromFileURL() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("md-viewer-tests-\(UUID().uuidString)")
+            .appendingPathExtension("md")
+
+        try "# File Title\n\nBody from file.".write(to: fileURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let rendered = try renderer.renderDocument(fileURL: fileURL)
+
+        #expect(rendered.metadata.title == "File Title")
+        #expect(rendered.html.contains("Body from file."))
+    }
+
+    @Test
+    func fileURLRendererRejectsNonFileURLs() throws {
+        let remoteURL = try #require(URL(string: "https://example.com/readme.md"))
+
+        do {
+            _ = try renderer.renderDocument(fileURL: remoteURL)
+            #expect(Bool(false), "Expected invalidFileURL error")
+        } catch let error as MarkdownRenderError {
+            switch error {
+            case let .invalidFileURL(url):
+                #expect(url == remoteURL)
+            default:
+                #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @Test
+    func fileURLRendererRejectsNonUTF8Content() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("md-viewer-tests-bin-\(UUID().uuidString)")
+            .appendingPathExtension("md")
+
+        try Data([0xFF, 0xFE, 0x00, 0xD8]).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        do {
+            _ = try renderer.renderDocument(fileURL: fileURL)
+            #expect(Bool(false), "Expected unsupportedEncoding error")
+        } catch let error as MarkdownRenderError {
+            switch error {
+            case let .unsupportedEncoding(url):
+                #expect(url == fileURL)
+            default:
+                #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
+            }
+        }
     }
 
     @Test

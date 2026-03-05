@@ -1,6 +1,12 @@
 name: Release
 
 on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.1.19). Defaults to selected ref.'
+        required: false
+        type: string
   push:
     tags:
       - 'v*'
@@ -12,8 +18,19 @@ jobs:
       contents: write
 
     steps:
+      - name: Resolve release tag
+        id: release_tag
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.tag }}" ]; then
+            TAG="${{ inputs.tag }}"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release_tag.outputs.tag }}
 
       - name: Swift package tests
         run: swift test
@@ -44,6 +61,7 @@ jobs:
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
           files: |
             artifacts/MDViewer.app.zip
             artifacts/MDViewer.app.zip.sha256
@@ -61,5 +79,5 @@ jobs:
         env:
           REPO_METADATA_TOKEN: ${{ secrets.REPO_METADATA_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_REF_NAME: ${{ steps.release_tag.outputs.tag }}
         run: ./scripts/sync_repo_about.sh

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.20] - 2026-03-05
+
+### Changed
+
+- Release workflow now supports `workflow_dispatch` with optional `tag` input to run releases manually when automatic `push tag` triggers are not firing.
+- Release job resolves and checks out the target tag explicitly and reuses that resolved tag for release publication and repository metadata sync.
+
 ## [0.1.19] - 2026-03-05
 
 ### Fixed

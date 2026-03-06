@@ -316,5 +316,23 @@ struct MarkdownRendererCoreTests {
 
         #expect(occurrences == 1)
     }
+
+    @Test
+    func nativeRenderAddsBreathingRoomBeforeHeadings() throws {
+        let markdown = """
+        Intro line
+        ## Heading
+        """
+
+        let rendered = try renderer.renderNativeDocument(markdown: markdown)
+        let text = rendered.attributedString.string
+        guard let headingRange = text.range(of: "Heading") else {
+            #expect(Bool(false))
+            return
+        }
+
+        let prefix = String(text[..<headingRange.lowerBound])
+        #expect(prefix.hasSuffix("\n\n"))
+    }
 #endif
 }

@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-03-06
+
+### Fixed
+
+- Native renderer now enforces a blank-line break before headings (`h1-h6`) so section titles have clearer visual separation from the previous block.
+- Added native regression coverage to ensure headings keep breathing room in attributed output.
+
 ## [0.1.20] - 2026-03-05
 
 ### Changed

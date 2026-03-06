@@ -180,12 +180,20 @@ public struct MarkdownRenderer {
         let rendered = try renderDocument(markdown: markdown, title: title, options: options)
         let nativeHTML = stripSearchableShadow(from: rendered.html)
         let attributed = try makeAttributedString(fromHTML: nativeHTML)
-        let headingsWithOffsets = assignCharacterOffsets(
+        let initialHeadingOffsets = assignCharacterOffsets(
             for: rendered.headings,
             in: attributed.string
         )
+        let spacedAttributed = addSpacingBeforeHeadings(
+            in: attributed,
+            headingOffsets: initialHeadingOffsets
+        )
+        let headingsWithOffsets = assignCharacterOffsets(
+            for: rendered.headings,
+            in: spacedAttributed.string
+        )
         return NativeRenderedMarkdownDocument(
-            attributedString: attributed,
+            attributedString: spacedAttributed,
             metadata: rendered.metadata,
             headings: headingsWithOffsets
         )
@@ -1035,6 +1043,67 @@ public struct MarkdownRenderer {
         }
 
         return try DispatchQueue.main.sync(execute: make)
+    }
+
+    private func addSpacingBeforeHeadings(
+        in attributed: NSAttributedString,
+        headingOffsets: [HeadingItem]
+    ) -> NSAttributedString {
+        guard !headingOffsets.isEmpty, attributed.length > 0 else {
+            return attributed
+        }
+
+        let mutable = NSMutableAttributedString(attributedString: attributed)
+        var inserted = 0
+
+        for heading in headingOffsets {
+            guard let originalOffset = heading.characterOffset else {
+                continue
+            }
+
+            let location = originalOffset + inserted
+            guard location > 0, location <= mutable.length else {
+                continue
+            }
+
+            let text = mutable.string as NSString
+            let existingBreaks = newlineCount(before: location, in: text)
+            let neededBreaks = max(0, 2 - existingBreaks)
+            guard neededBreaks > 0 else {
+                continue
+            }
+
+            let attributes = mutable.attributes(at: max(0, location - 1), effectiveRange: nil)
+            let spacer = NSAttributedString(
+                string: String(repeating: "\n", count: neededBreaks),
+                attributes: attributes
+            )
+            mutable.insert(spacer, at: location)
+            inserted += neededBreaks
+        }
+
+        return mutable
+    }
+
+    private func newlineCount(before location: Int, in text: NSString) -> Int {
+        guard location > 0 else {
+            return 0
+        }
+
+        var cursor = location - 1
+        var breaks = 0
+
+        while cursor >= 0 {
+            let codeUnit = text.character(at: cursor)
+            if codeUnit == 10 || codeUnit == 13 {
+                breaks += 1
+                cursor -= 1
+                continue
+            }
+            break
+        }
+
+        return breaks
     }
 
     private func assignCharacterOffsets(for headings: [HeadingItem], in plainText: String) -> [HeadingItem] {

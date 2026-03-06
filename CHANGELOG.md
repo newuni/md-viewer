@@ -4,12 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
-## [0.1.21] - 2026-03-06
+## [0.1.23] - 2026-03-06
 
 ### Fixed
 
 - Native renderer now enforces a blank-line break before headings (`h1-h6`) so section titles have clearer visual separation from the previous block.
 - Added native regression coverage to ensure headings keep breathing room in attributed output.
+
+## [0.1.22] - 2026-03-05
+
+### Added
+
+- Expanded renderer regression coverage for:
+  - JavaScript-link + inline event-handler sanitization
+  - Autolink punctuation edge case with wrapping parentheses
+  - Existing heading-id preservation in generated TOC metadata
+  - Folded front-matter description parsing and keyword extraction
+  - Unreadable file-path error wrapping for file URL rendering
+
+## [0.1.21] - 2026-03-05
+
+### Changed
+
+- Hardened CI/release workflows with concurrency guards and explicit job timeouts to reduce stuck/duplicated runs.
+- Release workflow now validates manual tag input format before checkout to fail fast with clear errors.
+- Release metadata sync is now non-blocking (`continue-on-error`) so packaging/publishing remains reliable even if repo-about sync has transient issues.
+
+### Refactored
+
+- Removed duplicated file-loading logic in `MarkdownRenderer` by introducing a shared `loadMarkdown(from:)` helper used by both HTML and native render paths.
+- Added regression tests for file URL rendering/error paths (non-file URL rejection and non-UTF8 content handling).
 
 ## [0.1.20] - 2026-03-05
 

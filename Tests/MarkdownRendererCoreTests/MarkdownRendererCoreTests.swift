@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import MarkdownRendererCore
 
@@ -67,6 +68,60 @@ struct MarkdownRendererCoreTests {
 
         #expect(html.contains("<!doctype html>"))
         #expect(html.contains("<body>"))
+    }
+
+    @Test
+    func rendersFromFileURL() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("md-viewer-tests-\(UUID().uuidString)")
+            .appendingPathExtension("md")
+
+        try "# File Title\n\nBody from file.".write(to: fileURL, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        let rendered = try renderer.renderDocument(fileURL: fileURL)
+
+        #expect(rendered.metadata.title == "File Title")
+        #expect(rendered.html.contains("Body from file."))
+    }
+
+    @Test
+    func fileURLRendererRejectsNonFileURLs() throws {
+        let remoteURL = try #require(URL(string: "https://example.com/readme.md"))
+
+        do {
+            _ = try renderer.renderDocument(fileURL: remoteURL)
+            #expect(Bool(false), "Expected invalidFileURL error")
+        } catch let error as MarkdownRenderError {
+            switch error {
+            case let .invalidFileURL(url):
+                #expect(url == remoteURL)
+            default:
+                #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    @Test
+    func fileURLRendererRejectsNonUTF8Content() throws {
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("md-viewer-tests-bin-\(UUID().uuidString)")
+            .appendingPathExtension("md")
+
+        try Data([0xFF, 0xFE, 0x00, 0xD8]).write(to: fileURL)
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+
+        do {
+            _ = try renderer.renderDocument(fileURL: fileURL)
+            #expect(Bool(false), "Expected unsupportedEncoding error")
+        } catch let error as MarkdownRenderError {
+            switch error {
+            case let .unsupportedEncoding(url):
+                #expect(url == fileURL)
+            default:
+                #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
+            }
+        }
     }
 
     @Test
@@ -259,6 +314,82 @@ struct MarkdownRendererCoreTests {
         #expect(html.contains("href=\"https://example.com/already-linked\""))
         #expect(!html.contains("href=\"<a href=\""))
         #expect(html.contains("<pre><code>https://example.com/fenced"))
+    }
+
+    @Test
+    func sanitizesJavaScriptLinksAndInlineEventHandlers() throws {
+        let markdown = #"""
+        <a href="javascript:alert('x')" onclick="evil()">click</a>
+        <img src='javascript:alert(1)' onerror='evil()'>
+        """#
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("href=\"#\""))
+        #expect(html.contains("src='#'"))
+        #expect(!html.localizedCaseInsensitiveContains("onclick="))
+        #expect(!html.localizedCaseInsensitiveContains("onerror="))
+    }
+
+    @Test
+    func autolinkExcludesTrailingParentheses() throws {
+        let markdown = "See (https://example.com/path)."
+
+        let html = try renderer.render(markdown: markdown)
+
+        #expect(html.contains("(<a href=\"https://example.com/path\">https://example.com/path</a>)."))
+    }
+
+    @Test
+    func preservesExistingHeadingIDs() throws {
+        let markdown = #"""
+        <h2 id="custom-anchor">Section</h2>
+        """#
+
+        let rendered = try renderer.renderDocument(markdown: markdown)
+
+        #expect(rendered.html.contains("<h2 id=\"custom-anchor\">Section</h2>"))
+        #expect(rendered.headings.contains(where: { $0.anchor == "custom-anchor" }))
+    }
+
+    @Test
+    func frontMatterSupportsFoldedDescriptionLines() throws {
+        let markdown = """
+        ---
+        title: Release Notes
+        description: First line
+          second line
+        keywords: swift, markdown
+        ---
+
+        Body section.
+        """
+
+        let rendered = try renderer.renderDocument(markdown: markdown)
+
+        #expect(rendered.metadata.title == "Release Notes")
+        #expect(rendered.metadata.description == "First line second line")
+        #expect(rendered.metadata.keywords.contains("swift"))
+        #expect(rendered.metadata.keywords.contains("markdown"))
+    }
+
+    @Test
+    func fileURLRendererWrapsUnreadablePathErrors() throws {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("md-viewer-missing-\(UUID().uuidString).md")
+
+        do {
+            _ = try renderer.renderDocument(fileURL: missing)
+            #expect(Bool(false), "Expected unreadableFile error")
+        } catch let error as MarkdownRenderError {
+            switch error {
+            case let .unreadableFile(url, underlying):
+                #expect(url == missing)
+                #expect(!underlying.localizedDescription.isEmpty)
+            default:
+                #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
+            }
+        }
     }
 
 #if canImport(AppKit)

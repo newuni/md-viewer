@@ -21,6 +21,7 @@ macOS preview support for `.md` files is inconsistent across tools and workflows
 - Basic HTML sanitization to strip active script content.
 - Automatic heading anchors so table-of-contents links (`#...`) work.
 - Lightweight syntax highlighting for fenced code blocks (Swift/JS/TS/Python/Shell/SQL).
+- Mermaid diagram support for fenced code blocks using automatic HTML/WebView fallback.
 - Live preview refresh when the source file changes on disk.
 - Find-in-document (`Cmd+F`) with next/previous navigation and case-sensitive toggle.
 - Collapsible outline sidebar for heading navigation (`h1`-`h4`) with active-section sync while you scroll.
@@ -33,6 +34,8 @@ macOS preview support for `.md` files is inconsistent across tools and workflows
 - Front matter support (`--- ... ---`) without rendering it as document content.
 - GitHub-flavored Markdown baseline support (tables, task lists, strikethrough).
 - Enriched Quick Look preview metadata (title/description/keywords extraction).
+
+Mermaid rendering is provided in HTML mode and uses the Mermaid browser runtime from jsDelivr.
 
 ## Requirements
 

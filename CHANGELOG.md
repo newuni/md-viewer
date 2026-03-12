@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.24] - 2026-03-12
+
+### Added
+
+- Mermaid fenced-code-block support rendered through the HTML/WebView path, with automatic fallback away from native attributed rendering when diagrams are present.
+- Renderer regression coverage for Mermaid HTML generation and native fallback behavior.
+
 ## [0.1.23] - 2026-03-06
 
 ### Fixed

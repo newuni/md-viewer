@@ -180,6 +180,23 @@ struct MarkdownRendererCoreTests {
     }
 
     @Test
+    func rendersMermaidFencesAsHTMLDiagrams() throws {
+        let markdown = """
+        ```mermaid
+        graph TD
+            Start --> Stop
+        ```
+        """
+
+        let rendered = try renderer.renderDocument(markdown: markdown)
+
+        #expect(rendered.html.contains("<pre class=\"mermaid\">"))
+        #expect(rendered.html.contains("graph TD"))
+        #expect(rendered.html.contains("Start --&gt; Stop"))
+        #expect(rendered.html.contains("import mermaid from \"https://cdn.jsdelivr.net/npm/mermaid@11.13.0/dist/mermaid.esm.min.mjs\""))
+    }
+
+    @Test
     func includesDocumentMetadataTags() throws {
         let markdown = """
         # Build release docs
@@ -464,6 +481,28 @@ struct MarkdownRendererCoreTests {
 
         let prefix = String(text[..<headingRange.lowerBound])
         #expect(prefix.hasSuffix("\n\n"))
+    }
+
+    @Test
+    func nativeRenderRejectsMermaidDiagrams() throws {
+        let markdown = """
+        ```mermaid
+        graph TD
+            A --> B
+        ```
+        """
+
+        do {
+            _ = try renderer.renderNativeDocument(markdown: markdown)
+            #expect(Bool(false), "Expected requiresHTMLPresentation error")
+        } catch let error as MarkdownRenderError {
+            switch error {
+            case let .requiresHTMLPresentation(reason):
+                #expect(reason.contains("Mermaid"))
+            default:
+                #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
+            }
+        }
     }
 #endif
 }

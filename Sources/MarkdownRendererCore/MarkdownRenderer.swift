@@ -8,6 +8,7 @@ public enum MarkdownRenderError: LocalizedError {
     case invalidFileURL(URL)
     case unreadableFile(URL, Error)
     case unsupportedEncoding(URL)
+    case requiresHTMLPresentation(String)
 
     public var errorDescription: String? {
         switch self {
@@ -17,6 +18,8 @@ public enum MarkdownRenderError: LocalizedError {
             return "Failed to read \(url.lastPathComponent): \(error.localizedDescription)"
         case let .unsupportedEncoding(url):
             return "The file \(url.lastPathComponent) is not valid UTF-8 text."
+        case let .requiresHTMLPresentation(reason):
+            return reason
         }
     }
 }
@@ -122,6 +125,7 @@ public struct NativeRenderedMarkdownDocument {
 
 public struct MarkdownRenderer {
     private static let searchableShadowElementID = "mdv-search-shadow"
+    private static let mermaidModuleURL = "https://cdn.jsdelivr.net/npm/mermaid@11.13.0/dist/mermaid.esm.min.mjs"
 
     public init() {}
 
@@ -146,17 +150,22 @@ public struct MarkdownRenderer {
             html: sanitizedHTML,
             collectTOC: normalizedOptions.tocExtractionEnabled
         )
-        let htmlWithHeadingAnchors = anchored.html
-        let highlightedHTML = normalizedOptions.syntaxHighlightingEnabled
-            ? highlightCodeBlocks(html: htmlWithHeadingAnchors)
-            : htmlWithHeadingAnchors
-        let autolinkedHTML = addAutolinks(to: highlightedHTML)
+        let processedCodeBlocks = processCodeBlocks(
+            html: anchored.html,
+            syntaxHighlightingEnabled: normalizedOptions.syntaxHighlightingEnabled
+        )
+        let autolinkedHTML = addAutolinks(to: processedCodeBlocks.html)
         let metadata = buildMetadata(
             fromBodyHTML: autolinkedHTML,
             fallbackTitle: title,
             frontMatter: preprocessed.frontMatter
         )
-        let finalHTML = wrapInDocument(bodyHTML: autolinkedHTML, metadata: metadata, options: normalizedOptions)
+        let finalHTML = wrapInDocument(
+            bodyHTML: autolinkedHTML,
+            metadata: metadata,
+            options: normalizedOptions,
+            includesMermaid: processedCodeBlocks.containsMermaid
+        )
         return RenderedMarkdownDocument(
             html: finalHTML,
             metadata: metadata,
@@ -178,6 +187,11 @@ public struct MarkdownRenderer {
         options: MarkdownRenderOptions = MarkdownRenderOptions()
     ) throws -> NativeRenderedMarkdownDocument {
         let rendered = try renderDocument(markdown: markdown, title: title, options: options)
+        guard !containsMermaid(in: rendered.html) else {
+            throw MarkdownRenderError.requiresHTMLPresentation(
+                "Documents with Mermaid diagrams require HTML rendering."
+            )
+        }
         let nativeHTML = stripSearchableShadow(from: rendered.html)
         let attributed = try makeAttributedString(fromHTML: nativeHTML)
         let initialHeadingOffsets = assignCharacterOffsets(
@@ -455,12 +469,15 @@ public struct MarkdownRenderer {
         return (output as String, headings)
     }
 
-    private func highlightCodeBlocks(html: String) -> String {
+    private func processCodeBlocks(
+        html: String,
+        syntaxHighlightingEnabled: Bool
+    ) -> (html: String, containsMermaid: Bool) {
         guard let regex = try? NSRegularExpression(
             pattern: #"<pre><code(?:\s+class=\"([^\"]*)\")?>([\s\S]*?)</code></pre>"#,
             options: [.caseInsensitive]
         ) else {
-            return html
+            return (html, false)
         }
 
         let nsHTML = html as NSString
@@ -469,6 +486,7 @@ public struct MarkdownRenderer {
 
         let output = NSMutableString(string: html)
         var offset = 0
+        var containsMermaid = false
 
         for match in matches {
             guard match.numberOfRanges == 3 else {
@@ -488,10 +506,17 @@ public struct MarkdownRenderer {
 
             let codeHTML = String(html[codeRange])
             let language = codeLanguage(fromClass: classString)
-            let highlighted = highlightCodeHTML(codeHTML, language: language)
-
-            let classAttribute = classString.isEmpty ? "" : " class=\"\(classString)\""
-            let replacement = "<pre><code\(classAttribute)>\(highlighted)</code></pre>"
+            let replacement: String
+            if language == "mermaid" {
+                containsMermaid = true
+                replacement = "<pre class=\"mermaid\">\(codeHTML)</pre>"
+            } else {
+                let renderedCode = syntaxHighlightingEnabled
+                    ? highlightCodeHTML(codeHTML, language: language)
+                    : codeHTML
+                let classAttribute = classString.isEmpty ? "" : " class=\"\(classString)\""
+                replacement = "<pre><code\(classAttribute)>\(renderedCode)</code></pre>"
+            }
 
             let adjustedRange = NSRange(
                 location: match.range.location + offset,
@@ -501,7 +526,7 @@ public struct MarkdownRenderer {
             offset += (replacement as NSString).length - match.range.length
         }
 
-        return output as String
+        return (output as String, containsMermaid)
     }
 
     private func addAutolinks(to html: String) -> String {
@@ -840,7 +865,12 @@ public struct MarkdownRenderer {
         return slug.isEmpty ? "section" : slug
     }
 
-    private func wrapInDocument(bodyHTML: String, metadata: MarkdownRenderMetadata, options: MarkdownRenderOptions) -> String {
+    private func wrapInDocument(
+        bodyHTML: String,
+        metadata: MarkdownRenderMetadata,
+        options: MarkdownRenderOptions,
+        includesMermaid: Bool
+    ) -> String {
         let escapedTitle = escapeHTML(metadata.title)
         let escapedDescription = escapeHTML(metadata.description)
         let escapedKeywords = escapeHTML(metadata.keywords.joined(separator: ", "))
@@ -858,6 +888,42 @@ public struct MarkdownRenderer {
         let lightClass = options.appearance == .light ? "theme-light" : ""
         let bodyClass = [darkClass, lightClass].filter { !$0.isEmpty }.joined(separator: " ")
         let bodyClassAttribute = bodyClass.isEmpty ? "" : " class=\"\(bodyClass)\""
+        let mermaidStyles = includesMermaid ? """
+                pre.mermaid {
+                    white-space: pre-wrap;
+                }
+                .mermaid svg {
+                    display: block;
+                    max-width: 100%;
+                    height: auto;
+                    margin: 0 auto;
+                }
+        """ : ""
+        let mermaidScript = includesMermaid ? """
+            <script type="module">
+                import mermaid from "\(Self.mermaidModuleURL)";
+
+                const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+                const isDark = document.body.classList.contains('theme-dark')
+                    || (!document.body.classList.contains('theme-light') && prefersDark.matches);
+
+                mermaid.initialize({
+                    startOnLoad: false,
+                    securityLevel: 'strict',
+                    theme: isDark ? 'dark' : 'default'
+                });
+
+                try {
+                    await mermaid.run({ querySelector: '.mermaid' });
+                } catch (error) {
+                    console.error('MDViewer Mermaid render failed', error);
+                }
+
+                if (window.__mdvNotifyActiveHeading) {
+                    window.__mdvNotifyActiveHeading();
+                }
+            </script>
+        """ : ""
 
         return """
         <!doctype html>
@@ -964,7 +1030,9 @@ public struct MarkdownRenderer {
                     max-width: 100%;
                     height: auto;
                 }
+        \(mermaidStyles)
             </style>
+        \(mermaidScript)
         </head>
         <body\(bodyClassAttribute)>
         \(bodyHTML)
@@ -1006,6 +1074,10 @@ public struct MarkdownRenderer {
             .replacingOccurrences(of: ">", with: "&gt;")
             .replacingOccurrences(of: "\"", with: "&quot;")
             .replacingOccurrences(of: "'", with: "&#39;")
+    }
+
+    private func containsMermaid(in html: String) -> Bool {
+        html.contains("<pre class=\"mermaid\">")
     }
 
 #if canImport(AppKit)

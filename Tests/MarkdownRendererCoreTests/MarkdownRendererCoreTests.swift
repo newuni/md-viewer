@@ -484,6 +484,28 @@ struct MarkdownRendererCoreTests {
     }
 
     @Test
+    func nativeRenderAddsBreathingRoomAfterTablesBeforeParagraphs() throws {
+        let markdown = """
+        | Name | Value |
+        | --- | --- |
+        | Alpha | 1 |
+
+        Summary after table.
+        """
+
+        let rendered = try renderer.renderNativeDocument(markdown: markdown)
+        let text = rendered.attributedString.string
+        guard let summaryRange = text.range(of: "Summary after table.") else {
+            #expect(Bool(false))
+            return
+        }
+
+        let prefix = String(text[..<summaryRange.lowerBound])
+        #expect(prefix.hasSuffix("\n\n"))
+        #expect(!text.contains("MDV_NATIVE_TABLE_SPACER"))
+    }
+
+    @Test
     func nativeRenderRejectsMermaidDiagrams() throws {
         let markdown = """
         ```mermaid

@@ -192,14 +192,23 @@ public struct MarkdownRenderer {
                 "Documents with Mermaid diagrams require HTML rendering."
             )
         }
-        let nativeHTML = stripSearchableShadow(from: rendered.html)
+        let markerID = UUID().uuidString.replacingOccurrences(of: "-", with: "")
+        let tableSpacerMarker = "__MDV_NATIVE_TABLE_SPACER_\(markerID)__"
+        let nativeHTML = markNativeTableBreaks(
+            in: stripSearchableShadow(from: rendered.html),
+            marker: tableSpacerMarker
+        )
         let attributed = try makeAttributedString(fromHTML: nativeHTML)
+        let tableSpacedAttributed = addSpacingAfterNativeTables(
+            in: attributed,
+            marker: tableSpacerMarker
+        )
         let initialHeadingOffsets = assignCharacterOffsets(
             for: rendered.headings,
-            in: attributed.string
+            in: tableSpacedAttributed.string
         )
         let spacedAttributed = addSpacingBeforeHeadings(
-            in: attributed,
+            in: tableSpacedAttributed,
             headingOffsets: initialHeadingOffsets
         )
         let headingsWithOffsets = assignCharacterOffsets(
@@ -1089,6 +1098,14 @@ public struct MarkdownRenderer {
         )
     }
 
+    private func markNativeTableBreaks(in html: String, marker: String) -> String {
+        html.replacing(
+            pattern: #"</table>"#,
+            with: "</table><span>\(marker)</span>",
+            options: [.caseInsensitive]
+        )
+    }
+
     private func makeAttributedString(fromHTML html: String) throws -> NSAttributedString {
         let options: [NSAttributedString.DocumentReadingOptionKey: Any] = [
             .documentType: NSAttributedString.DocumentType.html,
@@ -1107,6 +1124,36 @@ public struct MarkdownRenderer {
         }
 
         return try DispatchQueue.main.sync(execute: make)
+    }
+
+    private func addSpacingAfterNativeTables(
+        in attributed: NSAttributedString,
+        marker: String
+    ) -> NSAttributedString {
+        guard attributed.length > 0 else {
+            return attributed
+        }
+
+        let mutable = NSMutableAttributedString(attributedString: attributed)
+
+        while true {
+            let text = mutable.string as NSString
+            let markerRange = text.range(of: marker)
+            guard markerRange.location != NSNotFound else {
+                break
+            }
+
+            let existingBreaks = newlineCount(before: markerRange.location, in: text)
+            let neededBreaks = max(0, 2 - existingBreaks)
+            let attributes = attributesForSpacer(in: mutable, at: markerRange.location)
+            let spacer = NSAttributedString(
+                string: String(repeating: "\n", count: neededBreaks),
+                attributes: attributes
+            )
+            mutable.replaceCharacters(in: markerRange, with: spacer)
+        }
+
+        return mutable
     }
 
     private func addSpacingBeforeHeadings(
@@ -1137,7 +1184,7 @@ public struct MarkdownRenderer {
                 continue
             }
 
-            let attributes = mutable.attributes(at: max(0, location - 1), effectiveRange: nil)
+            let attributes = attributesForSpacer(in: mutable, at: location)
             let spacer = NSAttributedString(
                 string: String(repeating: "\n", count: neededBreaks),
                 attributes: attributes
@@ -1147,6 +1194,21 @@ public struct MarkdownRenderer {
         }
 
         return mutable
+    }
+
+    private func attributesForSpacer(
+        in attributed: NSAttributedString,
+        at location: Int
+    ) -> [NSAttributedString.Key: Any] {
+        if location > 0 {
+            return attributed.attributes(at: location - 1, effectiveRange: nil)
+        }
+
+        if attributed.length > 0 {
+            return attributed.attributes(at: 0, effectiveRange: nil)
+        }
+
+        return [:]
     }
 
     private func newlineCount(before location: Int, in text: NSString) -> Int {

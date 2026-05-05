@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.25] - 2026-05-05
+
+### Fixed
+
+- Native renderer now preserves explicit breathing room after tables so following paragraphs do not sit against the table border.
+- Added native regression coverage for table-to-paragraph spacing.
+
 ## [0.1.24] - 2026-03-12
 
 ### Added

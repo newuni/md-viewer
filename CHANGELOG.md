@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [0.1.26] - 2026-05-05
+
+### Fixed
+
+- Theme changes now refresh the native preview when only rendered attributes change and the markdown text stays the same.
+- Native previews now apply the selected theme background instead of leaving the host window background visible.
+- Added native regression coverage for theme-specific text color attributes.
+
 ## [0.1.25] - 2026-05-05
 
 ### Fixed

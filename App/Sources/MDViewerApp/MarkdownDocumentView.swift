@@ -53,6 +53,8 @@ struct MarkdownDocumentView: View {
     let document: MarkdownDocument
     let fileURL: URL?
 
+    @Environment(\.colorScheme) private var colorScheme
+
     @State private var renderedNativeDocument: NativeRenderedMarkdownDocument?
     @State private var renderedFallbackDocument: RenderedMarkdownDocument?
     @State private var renderedErrorMessage: String?
@@ -117,7 +119,15 @@ struct MarkdownDocumentView: View {
                 commandPalette
             }
         }
-        .task(id: RenderTaskKey(text: effectiveMarkdownText, fastMode: isFastModeEnabled, theme: selectedThemeRaw, appearance: selectedAppearanceRaw, bodyFontSize: bodyFontSize, codeFontSize: codeFontSize)) {
+        .task(id: RenderTaskKey(
+            text: effectiveMarkdownText,
+            fastMode: isFastModeEnabled,
+            theme: selectedThemeRaw,
+            appearance: selectedAppearanceRaw,
+            colorScheme: colorScheme == .dark ? "dark" : "light",
+            bodyFontSize: bodyFontSize,
+            codeFontSize: codeFontSize
+        )) {
             renderCurrentDocument()
         }
         .toolbar {
@@ -218,6 +228,14 @@ struct MarkdownDocumentView: View {
         MarkdownAppearance(rawValue: selectedAppearanceRaw) ?? .system
     }
 
+    private var resolvedNativeAppearance: MarkdownAppearance {
+        guard selectedAppearance == .system else {
+            return selectedAppearance
+        }
+
+        return colorScheme == .dark ? .dark : .light
+    }
+
     private var isFastModeEnabled: Bool {
         fastModeOverride ?? (tier == .large || tier == .huge)
     }
@@ -270,6 +288,7 @@ struct MarkdownDocumentView: View {
                     NativeMarkdownTextView(
                         attributedString: renderedNativeDocument.attributedString,
                         headingOffsets: headingOffsets,
+                        backgroundColor: nativeBackgroundColor,
                         searchRequest: nativeSearchRequest,
                         scrollRequest: nativeScrollRequest
                     ) { found in
@@ -513,6 +532,41 @@ struct MarkdownDocumentView: View {
         )
     }
 
+    private var nativeRenderOptions: MarkdownRenderOptions {
+        MarkdownRenderOptions(
+            syntaxHighlightingEnabled: !isFastModeEnabled,
+            tocExtractionEnabled: !isFastModeEnabled,
+            fastMode: isFastModeEnabled,
+            theme: selectedTheme,
+            appearance: resolvedNativeAppearance,
+            bodyFontSize: bodyFontSize,
+            codeFontSize: codeFontSize
+        )
+    }
+
+    private var nativeBackgroundColor: NSColor {
+        switch (selectedTheme, resolvedNativeAppearance) {
+        case (.system, .light):
+            return NSColor(hex: 0xf8f8f8)
+        case (.system, .dark):
+            return NSColor(hex: 0x111315)
+        case (.github, .light):
+            return NSColor(hex: 0xffffff)
+        case (.github, .dark):
+            return NSColor(hex: 0x0d1117)
+        case (.solarized, .light):
+            return NSColor(hex: 0xfdf6e3)
+        case (.solarized, .dark):
+            return NSColor(hex: 0x002b36)
+        case (.dracula, .light):
+            return NSColor(hex: 0xf8f8f2)
+        case (.dracula, .dark):
+            return NSColor(hex: 0x282a36)
+        case (_, .system):
+            return colorScheme == .dark ? NSColor.windowBackgroundColor : NSColor.textBackgroundColor
+        }
+    }
+
     private var searchSignature: String {
         "\(isCaseSensitiveSearch)|\(searchQuery.trimmingCharacters(in: .whitespacesAndNewlines))"
     }
@@ -555,7 +609,7 @@ struct MarkdownDocumentView: View {
             let rendered = try renderer.renderNativeDocument(
                 markdown: effectiveMarkdownText,
                 title: fileURL?.lastPathComponent ?? "Markdown Preview",
-                options: renderOptions
+                options: nativeRenderOptions
             )
             renderedNativeDocument = rendered
             renderedFallbackDocument = nil
@@ -733,6 +787,18 @@ private struct RenderTaskKey: Hashable {
     let fastMode: Bool
     let theme: String
     let appearance: String
+    let colorScheme: String
     let bodyFontSize: Int
     let codeFontSize: Int
+}
+
+private extension NSColor {
+    convenience init(hex: Int) {
+        self.init(
+            calibratedRed: CGFloat((hex >> 16) & 0xff) / 255.0,
+            green: CGFloat((hex >> 8) & 0xff) / 255.0,
+            blue: CGFloat(hex & 0xff) / 255.0,
+            alpha: 1
+        )
+    }
 }

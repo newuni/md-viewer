@@ -1,6 +1,9 @@
 import Foundation
 import Testing
 @testable import MarkdownRendererCore
+#if canImport(AppKit)
+import AppKit
+#endif
 
 struct MarkdownRendererCoreTests {
     private let renderer = MarkdownRenderer()
@@ -506,6 +509,26 @@ struct MarkdownRendererCoreTests {
     }
 
     @Test
+    func nativeRenderAppliesThemeTextColorAttributes() throws {
+        let markdown = "Theme body text."
+        let github = try renderer.renderNativeDocument(
+            markdown: markdown,
+            options: MarkdownRenderOptions(theme: .github, appearance: .light)
+        )
+        let dracula = try renderer.renderNativeDocument(
+            markdown: markdown,
+            options: MarkdownRenderOptions(theme: .dracula, appearance: .dark)
+        )
+
+        let githubColor = foregroundColor(in: github.attributedString, matching: markdown)
+        let draculaColor = foregroundColor(in: dracula.attributedString, matching: markdown)
+
+        #expect(githubColor != nil)
+        #expect(draculaColor != nil)
+        #expect(githubColor != draculaColor)
+    }
+
+    @Test
     func nativeRenderRejectsMermaidDiagrams() throws {
         let markdown = """
         ```mermaid
@@ -525,6 +548,26 @@ struct MarkdownRendererCoreTests {
                 #expect(Bool(false), "Unexpected MarkdownRenderError: \(error.localizedDescription)")
             }
         }
+    }
+
+    private func foregroundColor(in attributed: NSAttributedString, matching text: String) -> String? {
+        let range = (attributed.string as NSString).range(of: text)
+        guard range.location != NSNotFound else {
+            return nil
+        }
+
+        guard let color = attributed.attribute(.foregroundColor, at: range.location, effectiveRange: nil) as? NSColor else {
+            return nil
+        }
+
+        guard let rgb = color.usingColorSpace(.sRGB) else {
+            return nil
+        }
+
+        let red = Int(round(rgb.redComponent * 255))
+        let green = Int(round(rgb.greenComponent * 255))
+        let blue = Int(round(rgb.blueComponent * 255))
+        return String(format: "%02x%02x%02x", red, green, blue)
     }
 #endif
 }

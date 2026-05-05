@@ -36,6 +36,7 @@ struct NativeMarkdownTextView: NSViewRepresentable {
 
     let attributedString: NSAttributedString
     let headingOffsets: [String: Int]
+    let backgroundColor: NSColor
     var searchRequest: SearchRequest?
     var scrollRequest: ScrollRequest?
     var onSearchResult: (Bool) -> Void = { _ in }
@@ -49,7 +50,8 @@ struct NativeMarkdownTextView: NSViewRepresentable {
         let textView = NSTextView(frame: .zero)
         textView.isEditable = false
         textView.isSelectable = true
-        textView.drawsBackground = false
+        textView.drawsBackground = true
+        textView.backgroundColor = backgroundColor
         textView.importsGraphics = false
         textView.textContainerInset = NSSize(width: 20, height: 20)
         textView.usesAdaptiveColorMappingForDarkAppearance = true
@@ -65,7 +67,8 @@ struct NativeMarkdownTextView: NSViewRepresentable {
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.borderType = .noBorder
-        scrollView.drawsBackground = false
+        scrollView.drawsBackground = true
+        scrollView.backgroundColor = backgroundColor
         scrollView.documentView = textView
 
         context.coordinator.textView = textView
@@ -84,9 +87,14 @@ struct NativeMarkdownTextView: NSViewRepresentable {
         }
 
         context.coordinator.textView = textView
-        let contentSignature = attributedString.string.hashValue ^ attributedString.length
-        if context.coordinator.lastContentSignature != contentSignature {
-            context.coordinator.lastContentSignature = contentSignature
+        textView.backgroundColor = backgroundColor
+        scrollView.backgroundColor = backgroundColor
+
+        let hasSameObject = context.coordinator.lastAttributedString.map { $0 === attributedString } ?? false
+        let hasSameAttributedString = hasSameObject
+            || context.coordinator.lastAttributedString?.isEqual(to: attributedString) == true
+        if !hasSameAttributedString {
+            context.coordinator.lastAttributedString = attributedString
             textView.textStorage?.setAttributedString(attributedString)
             textView.setSelectedRange(NSRange(location: 0, length: 0))
         }
@@ -104,7 +112,7 @@ struct NativeMarkdownTextView: NSViewRepresentable {
         var onSearchResult: (Bool) -> Void
         var onActiveHeadingChange: (String?) -> Void
         var headingOffsets: [String: Int] = [:]
-        var lastContentSignature = 0
+        var lastAttributedString: NSAttributedString?
         var lastSearchRequestID: UUID?
         var lastScrollRequestID: UUID?
         var pendingSearchRequest: SearchRequest?
